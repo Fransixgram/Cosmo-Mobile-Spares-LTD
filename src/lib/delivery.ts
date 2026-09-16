@@ -1,6 +1,6 @@
 // src/lib/delivery.ts
 //
-// Placeholder delivery fee. Deliberately NOT a real Cosmo Mobile Spares Ltd
+// Placeholder delivery fee. Deliberately NOT a real Cosmos Mobile Spares
 // rate — this is a configurable stand-in until real delivery pricing
 // (by state, weight, distance, etc.) is defined. Swap this single value
 // (or replace getDeliveryFee's logic) once that's decided; nothing else
