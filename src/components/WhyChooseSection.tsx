@@ -31,7 +31,7 @@ export default function WhyChooseSection() {
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-8">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Why Choose Cosmos
+            Why Choose Cosmo
           </h2>
         </div>
 

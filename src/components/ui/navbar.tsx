@@ -1,21 +1,6 @@
 import * as React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Menu,
-  Search,
-  ShoppingCart,
-  Smartphone,
-  Fingerprint,
-  BatteryCharging,
-  Camera,
-  Volume2,
-  CreditCard,
-  Wrench,
-  Cable,
-  Droplet,
-  Layers,
-  PackagePlus,
-} from "lucide-react";
+import { Menu, Search, ShoppingCart } from "lucide-react";
 
 import {
   Accordion,
@@ -49,29 +34,7 @@ import {
 } from "@/components/ui/command";
 import { useCart } from "@/contexts/CartContext";
 import { mockProducts } from "@/data/products";
-
-interface CategoryLink {
-  title: string;
-  url: string;
-  icon: React.ReactElement;
-}
-
-// Categories match Cosmos Mobile Spares' actual product range.
-// Each links to /shop with a ?category= query param — the Shop page filters
-// on this param, so no separate page is needed per category.
-const categories: CategoryLink[] = [
-  { title: "Screens", url: "/shop?category=screens", icon: <Smartphone className="size-5 shrink-0" /> },
-  { title: "Touch Pads", url: "/shop?category=touch-pads", icon: <Fingerprint className="size-5 shrink-0" /> },
-  { title: "Charging Ports", url: "/shop?category=charging-ports", icon: <BatteryCharging className="size-5 shrink-0" /> },
-  { title: "Camera Glass", url: "/shop?category=camera-glass", icon: <Camera className="size-5 shrink-0" /> },
-  { title: "Speakers & Earpieces", url: "/shop?category=speakers", icon: <Volume2 className="size-5 shrink-0" /> },
-  { title: "SIM Trays", url: "/shop?category=sim-trays", icon: <CreditCard className="size-5 shrink-0" /> },
-  { title: "Soldering Tools", url: "/shop?category=soldering-tools", icon: <Wrench className="size-5 shrink-0" /> },
-  { title: "Power Flexes", url: "/shop?category=power-flexes", icon: <Cable className="size-5 shrink-0" /> },
-  { title: "Screen Gum / Paste", url: "/shop?category=screen-gum", icon: <Droplet className="size-5 shrink-0" /> },
-  { title: "iPhone Back Glass", url: "/shop?category=back-glass", icon: <Layers className="size-5 shrink-0" /> },
-  { title: "Other Accessories", url: "/shop?category=other", icon: <PackagePlus className="size-5 shrink-0" /> },
-];
+import { categories } from "@/data/categories";
 
 const primaryLinks = [
   { title: "Home", url: "/" },
@@ -120,7 +83,7 @@ export default function Navbar() {
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
               <span className="text-lg font-bold tracking-tight">
-                Cosmos<span className="text-primary"> Mobile Spares</span>
+                Cosmo<span className="text-primary"> Mobile Spares</span>
               </span>
             </Link>
 
@@ -148,13 +111,13 @@ export default function Navbar() {
                   <NavigationMenuContent>
                     <ul className="grid w-[420px] grid-cols-2 gap-1 p-3">
                       {categories.map((category) => (
-                        <li key={category.title}>
+                        <li key={category.slug}>
                           <NavigationMenuLink asChild>
                             <Link
-                              to={category.url}
+                              to={`/shop?category=${category.slug}`}
                               className="flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
                             >
-                              {category.icon}
+                              <category.icon className="size-5 shrink-0" />
                               <span className="text-sm font-medium">
                                 {category.title}
                               </span>
@@ -212,7 +175,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
               <span className="text-base font-bold tracking-tight">
-                Cosmos<span className="text-primary"> Mobile Spares</span>
+                Cosmo<span className="text-primary"> Mobile Spares</span>
               </span>
             </Link>
 
@@ -251,7 +214,7 @@ export default function Navbar() {
                   <SheetHeader>
                     <SheetTitle>
                       <span className="text-base font-bold tracking-tight">
-                        Cosmos<span className="text-primary"> Mobile Spares</span>
+                        Cosmo<span className="text-primary"> Mobile Spares</span>
                       </span>
                     </SheetTitle>
                   </SheetHeader>
@@ -278,11 +241,11 @@ export default function Navbar() {
                           <div className="flex flex-col gap-1">
                             {categories.map((category) => (
                               <Link
-                                key={category.title}
-                                to={category.url}
+                                key={category.slug}
+                                to={`/shop?category=${category.slug}`}
                                 className="flex select-none items-center gap-3 rounded-md p-3 leading-none outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
                               >
-                                {category.icon}
+                                <category.icon className="size-5 shrink-0" />
                                 <span className="text-sm font-medium">
                                   {category.title}
                                 </span>
@@ -312,7 +275,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Search Dialog — searches real Cosmos Mobile Spares product data */}
+      {/* Search Dialog — searches Cosmo Mobile Spares Ltd product data */}
       <CommandDialog open={openSearch} onOpenChange={setOpenSearch}>
         <CommandInput
           placeholder="Search products (e.g. iPhone screen, soldering iron)..."

@@ -11,8 +11,8 @@ export default function CtaSection() {
           Need a specific spare part?
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-          Can't find what you're looking for? Get in touch with Cosmos Mobile
-          Spares LTD and we'll help you find the right part.
+          Can't find what you're looking for? Get in touch with Cosmo Mobile
+          Spares Ltd and we'll help you find the right part.
         </p>
 
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">

@@ -18,7 +18,7 @@ export const mockProducts: Product[] = [
     price: 45000,
     stock: 12,
     images: ["/placeholder-product.png"],
-    category: "Screens",
+    category: "Complete Screens",
     specs: {
       compatibleModel: "iPhone 13",
       quality: "OEM",

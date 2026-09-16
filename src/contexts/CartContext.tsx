@@ -18,7 +18,7 @@ import type { CartItem } from "../types/cart";
 import type { Product } from "../types/product";
 import { mockProducts } from "../data/products";
 
-const STORAGE_KEY = "cosmos-cart";
+const STORAGE_KEY = "cosmo-cart";
 
 interface StoredCartEntry {
   productId: string;
