@@ -19,4 +19,5 @@ export interface Product {
   category: string;
   specs: ProductSpecs;
   createdAt: string; // ISO date string
+  isFeatured?: boolean; // optional — populated from Supabase's is_featured column; undefined for mock data, treated as false
 }

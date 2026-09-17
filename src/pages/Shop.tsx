@@ -1,28 +1,35 @@
 // src/pages/Shop.tsx
 //
 // Product catalogue: search + category filter + sort, all working
-// together over the existing mock data. Category state lives in the URL
-// (?category=slug) so links from the navbar/Home category cards work
-// correctly and the page stays bookmarkable/shareable.
+// together over products fetched from Supabase's public.products table
+// (is_active = true only). mockProducts is NOT used here anymore — see
+// src/data/products.ts, which is kept around as development data for
+// other pages/testing, per instruction.
 //
-// Category FILTER PILLS are now sourced from Supabase (categories table).
+// Category FILTER PILLS are sourced from Supabase (categories table).
 // The local `categories` list (src/data/categories.ts) is shown
-// immediately and kept as a fallback if the fetch fails, so the page
+// immediately and kept as a fallback if that fetch fails, so the page
 // never has to show an empty/broken filter row and never blocks on the
-// network. Product filtering itself still uses the existing mock
-// product data and getCategorySlug — unaffected by where the pills
-// came from, since both resolve to the same canonical slugs.
+// network.
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, SlidersHorizontal, X, PackageX, AlertTriangle } from "lucide-react";
-import { mockProducts } from "@/data/products";
+import {
+  Search,
+  SlidersHorizontal,
+  X,
+  PackageX,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import type { Product } from "@/types/product";
 import {
   getCategorySlug,
   getLocalShopCategories,
   mapSupabaseCategory,
   type ShopCategory,
 } from "@/lib/category";
+import { mapSupabaseProduct, type SupabaseProductRow } from "@/lib/supabaseProducts";
 import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
@@ -84,6 +91,59 @@ export default function Shop() {
     };
   }, []);
 
+  // Product catalogue, fetched from Supabase.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      setProductsLoading(true);
+      setProductsError(null);
+
+      // Fetched independently of the pills' category state above, so
+      // product mapping never depends on the timing/outcome of that
+      // separate fetch.
+      const [categoriesResult, productsResult] = await Promise.all([
+        supabase.from("categories").select("id, name"),
+        supabase
+          .from("products")
+          .select(
+            "id, created_at, name, description, price, stock, category_id, slug, image_url, images, compatible_models, colors, specs, is_featured, is_active"
+          )
+          .eq("is_active", true),
+      ]);
+
+      if (cancelled) return;
+
+      if (productsResult.error) {
+        setProductsError(
+          "Couldn't load products right now. Please try again shortly."
+        );
+        setProducts([]);
+        setProductsLoading(false);
+        return;
+      }
+
+      const categoryNameById = new Map<number, string>(
+        (categoriesResult.data ?? []).map((row) => [row.id, row.name])
+      );
+
+      const rows = (productsResult.data ?? []) as SupabaseProductRow[];
+      setProducts(rows.map((row) => mapSupabaseProduct(row, categoryNameById)));
+      setProductsLoading(false);
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
+
   const activeCategorySlug = searchParams.get("category");
 
   function setCategory(slug: string | null) {
@@ -109,7 +169,7 @@ export default function Shop() {
   const visibleProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
-    let result = mockProducts.filter((product) => {
+    let result = products.filter((product) => {
       const matchesCategory =
         !activeCategorySlug ||
         getCategorySlug(product.category) === activeCategorySlug;
@@ -133,12 +193,14 @@ export default function Shop() {
           return a.name.localeCompare(b.name);
         case "featured":
         default:
-          return 0; // keep catalogue order
+          // Featured products first (stable sort preserves catalogue
+          // order within each group).
+          return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
       }
     });
 
     return result;
-  }, [activeCategorySlug, searchTerm, sortOption]);
+  }, [products, activeCategorySlug, searchTerm, sortOption]);
 
   const activeCategoryTitle = shopCategories.find(
     (category) => category.slug === activeCategorySlug
@@ -231,8 +293,8 @@ export default function Shop() {
         </div>
       )}
 
-      {/* Active filters + reset */}
-      {hasActiveFilters && (
+      {/* Active filters + reset — only meaningful once products have loaded */}
+      {!productsLoading && !productsError && hasActiveFilters && (
         <div className="mt-4 flex items-center gap-3 text-sm text-muted-foreground">
           <span>
             {visibleProducts.length} result
@@ -249,8 +311,47 @@ export default function Shop() {
         </div>
       )}
 
-      {/* Product grid / empty state */}
-      {visibleProducts.length === 0 ? (
+      {/* Product catalogue: loading / error / empty catalogue / no results / grid */}
+      {productsLoading ? (
+        <div className="mt-16 flex flex-col items-center text-center">
+          <Loader2 className="size-7 animate-spin text-muted-foreground" />
+          <p className="mt-4 text-sm text-muted-foreground">
+            Loading products…
+          </p>
+        </div>
+      ) : productsError ? (
+        <div className="mt-16 flex flex-col items-center text-center">
+          <span className="flex size-16 items-center justify-center rounded-full bg-destructive/10">
+            <AlertTriangle className="size-7 text-destructive" />
+          </span>
+          <h2 className="mt-6 text-lg font-semibold">
+            Couldn't load products
+          </h2>
+          <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+            {productsError}
+          </p>
+          <Button
+            variant="outline"
+            className="mt-5"
+            onClick={() => setReloadToken((token) => token + 1)}
+          >
+            Try Again
+          </Button>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="mt-16 flex flex-col items-center text-center">
+          <span className="flex size-16 items-center justify-center rounded-full bg-muted">
+            <PackageX className="size-7 text-muted-foreground" />
+          </span>
+          <h2 className="mt-6 text-lg font-semibold">
+            Catalogue coming soon
+          </h2>
+          <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+            We're setting up the product catalogue. Please check back
+            shortly.
+          </p>
+        </div>
+      ) : visibleProducts.length === 0 ? (
         <div className="mt-16 flex flex-col items-center text-center">
           <span className="flex size-16 items-center justify-center rounded-full bg-muted">
             <PackageX className="size-7 text-muted-foreground" />
