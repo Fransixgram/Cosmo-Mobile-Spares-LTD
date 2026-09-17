@@ -4,13 +4,26 @@
 // together over the existing mock data. Category state lives in the URL
 // (?category=slug) so links from the navbar/Home category cards work
 // correctly and the page stays bookmarkable/shareable.
+//
+// Category FILTER PILLS are now sourced from Supabase (categories table).
+// The local `categories` list (src/data/categories.ts) is shown
+// immediately and kept as a fallback if the fetch fails, so the page
+// never has to show an empty/broken filter row and never blocks on the
+// network. Product filtering itself still uses the existing mock
+// product data and getCategorySlug — unaffected by where the pills
+// came from, since both resolve to the same canonical slugs.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, SlidersHorizontal, X, PackageX } from "lucide-react";
+import { Search, SlidersHorizontal, X, PackageX, AlertTriangle } from "lucide-react";
 import { mockProducts } from "@/data/products";
-import { categories } from "@/data/categories";
-import { getCategorySlug } from "@/lib/category";
+import {
+  getCategorySlug,
+  getLocalShopCategories,
+  mapSupabaseCategory,
+  type ShopCategory,
+} from "@/lib/category";
+import { supabase } from "@/lib/supabase";
 import ProductCard from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +41,48 @@ export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("featured");
+
+  // Category pills: start with the local list immediately (no empty
+  // flash), replace with Supabase data on success, fall back to the
+  // local list again on error.
+  const [shopCategories, setShopCategories] = useState<ShopCategory[]>(
+    getLocalShopCategories()
+  );
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCategories() {
+      setCategoriesLoading(true);
+      setCategoriesError(null);
+
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, created_at")
+        .order("name", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        setCategoriesError(
+          "Couldn't refresh categories from the server — showing defaults."
+        );
+        setShopCategories(getLocalShopCategories());
+      } else if (data) {
+        setShopCategories(data.map(mapSupabaseCategory));
+      }
+
+      setCategoriesLoading(false);
+    }
+
+    loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const activeCategorySlug = searchParams.get("category");
 
@@ -85,7 +140,7 @@ export default function Shop() {
     return result;
   }, [activeCategorySlug, searchTerm, sortOption]);
 
-  const activeCategoryTitle = categories.find(
+  const activeCategoryTitle = shopCategories.find(
     (category) => category.slug === activeCategorySlug
   )?.title;
 
@@ -132,33 +187,49 @@ export default function Shop() {
       </div>
 
       {/* Category filter pills */}
-      <div className="mt-4 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        <button
-          type="button"
-          onClick={() => setCategory(null)}
-          className={
-            !activeCategorySlug
-              ? "shrink-0 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground"
-              : "shrink-0 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent"
-          }
-        >
-          All
-        </button>
-        {categories.map((category) => (
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="-mx-4 flex flex-1 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
           <button
-            key={category.slug}
             type="button"
-            onClick={() => setCategory(category.slug)}
+            onClick={() => setCategory(null)}
             className={
-              activeCategorySlug === category.slug
+              !activeCategorySlug
                 ? "shrink-0 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground"
                 : "shrink-0 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent"
             }
           >
-            {category.title}
+            All
           </button>
-        ))}
+          {shopCategories.map((category) => (
+            <button
+              key={category.slug}
+              type="button"
+              onClick={() => setCategory(category.slug)}
+              className={
+                activeCategorySlug === category.slug
+                  ? "shrink-0 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground"
+                  : "shrink-0 rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent"
+              }
+            >
+              {category.title}
+            </button>
+          ))}
+        </div>
+
+        {/* Subtle, non-blocking loading indicator */}
+        {categoriesLoading && (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            Updating categories…
+          </span>
+        )}
       </div>
+
+      {categoriesError && (
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span>{categoriesError}</span>
+        </div>
+      )}
 
       {/* Active filters + reset */}
       {hasActiveFilters && (
