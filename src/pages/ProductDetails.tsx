@@ -1,15 +1,32 @@
 // src/pages/ProductDetails.tsx
+//
+// Now fetches the product (and its related products) from Supabase's
+// public.products table instead of mockProducts, reusing the same
+// mapSupabaseProduct mapper Shop.tsx uses — no second mapping system.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronLeft, Minus, Plus, ShoppingCart, PackageX } from "lucide-react";
-import { mockProducts } from "@/data/products";
+import {
+  ChevronLeft,
+  Minus,
+  Plus,
+  ShoppingCart,
+  PackageX,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
+import type { Product } from "@/types/product";
+import { mapSupabaseProduct, type SupabaseProductRow } from "@/lib/supabaseProducts";
+import { supabase } from "@/lib/supabase";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/button";
 import ProductCard from "@/components/ProductCard";
 
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
+
+const PRODUCT_COLUMNS =
+  "id, created_at, name, description, price, stock, category_id, slug, image_url, images, compatible_models, colors, specs, is_featured, is_active";
 
 function formatNaira(amount: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -30,11 +47,136 @@ export default function ProductDetails() {
   const { addItem } = useCart();
   const { showToast } = useToast();
 
-  const product = mockProducts.find((item) => item.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProduct() {
+      setLoading(true);
+      setError(null);
+      setProduct(null);
+      setRelatedProducts([]);
+      setQuantity(1);
+      setActiveImageIndex(0);
+
+      // A non-numeric/missing id can never match a bigint primary key —
+      // treat it as "not found" without hitting the network.
+      const numericId = id ? Number(id) : NaN;
+      if (!Number.isInteger(numericId)) {
+        setLoading(false);
+        return;
+      }
+
+      const [categoriesResult, productResult] = await Promise.all([
+        supabase.from("categories").select("id, name"),
+        supabase
+          .from("products")
+          .select(PRODUCT_COLUMNS)
+          .eq("id", numericId)
+          .eq("is_active", true)
+          .maybeSingle(),
+      ]);
+
+      if (cancelled) return;
+
+      if (productResult.error) {
+        setError("Couldn't load this product right now. Please try again shortly.");
+        setLoading(false);
+        return;
+      }
+
+      const row = productResult.data as SupabaseProductRow | null;
+      if (!row) {
+        // Query succeeded, just no matching (active) product — not-found
+        // state, not an error state.
+        setLoading(false);
+        return;
+      }
+
+      const categoryNameById = new Map<number, string>(
+        (categoriesResult.data ?? []).map((category) => [category.id, category.name])
+      );
+
+      setProduct(mapSupabaseProduct(row, categoryNameById));
+
+      // Related products: same category, excluding the current product.
+      if (row.category_id != null) {
+        const relatedResult = await supabase
+          .from("products")
+          .select(PRODUCT_COLUMNS)
+          .eq("is_active", true)
+          .eq("category_id", row.category_id)
+          .neq("id", row.id)
+          .limit(4);
+
+        if (!cancelled && relatedResult.data) {
+          const relatedRows = relatedResult.data as SupabaseProductRow[];
+          setRelatedProducts(
+            relatedRows.map((relatedRow) =>
+              mapSupabaseProduct(relatedRow, categoryNameById)
+            )
+          );
+        }
+      }
+
+      setLoading(false);
+    }
+
+    loadProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reloadToken]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
+        <Loader2 className="size-7 animate-spin text-muted-foreground" />
+        <p className="mt-4 text-sm text-muted-foreground">
+          Loading product…
+        </p>
+      </div>
+    );
+  }
+
+  // Error state (distinct from "not found" — this is a fetch failure)
+  if (error) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
+        <span className="flex size-16 items-center justify-center rounded-full bg-destructive/10">
+          <AlertTriangle className="size-7 text-destructive" />
+        </span>
+        <h1 className="mt-6 text-2xl font-bold tracking-tight">
+          Couldn't load product
+        </h1>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{error}</p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setReloadToken((token) => token + 1)}
+          >
+            Try Again
+          </Button>
+          <Button asChild size="lg">
+            <Link to="/shop">Back to Shop</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Not-found state (query succeeded, no matching active product)
   if (!product) {
     return (
       <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
@@ -60,10 +202,6 @@ export default function ProductDetails() {
   const inStock = product.stock > 0;
   const atMax = quantity >= product.stock;
   const specEntries = Object.entries(product.specs);
-
-  const relatedProducts = mockProducts
-    .filter((item) => item.category === product.category && item.id !== product.id)
-    .slice(0, 4);
 
   function handleAddToCart() {
     if (!inStock || !product) return;
@@ -152,7 +290,8 @@ export default function ProductDetails() {
             {product.description}
           </p>
 
-          {/* Specifications */}
+          {/* Specifications (includes compatible models / colors, folded
+              in by mapSupabaseProduct alongside the raw specs jsonb) */}
           {specEntries.length > 0 && (
             <div className="mt-6">
               <h2 className="text-sm font-semibold">Specifications</h2>
