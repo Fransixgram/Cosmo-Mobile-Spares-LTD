@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "./contexts/CartContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import MainLayout from "./layouts/MainLayout";
+import RequireAdmin from "./components/RequireAdmin";
 
 import Home from "./pages/Home";
 import Shop from "./pages/Shop";
@@ -43,10 +44,20 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* Admin routes — deliberately outside MainLayout; they'll get their
-                own layout and auth protection in a later step. */}
+            {/* Admin routes — deliberately outside MainLayout. /admin is now
+                protected by RequireAdmin; the other admin sub-routes below
+                (/admin/products, /admin/orders, etc.) aren't built out yet
+                and are intentionally left unprotected for this phase — see
+                the report for why. */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireAdmin>
+                  <AdminDashboard />
+                </RequireAdmin>
+              }
+            />
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/products/new" element={<AdminProductNew />} />
             <Route path="/admin/products/:id/edit" element={<AdminProductEdit />} />
