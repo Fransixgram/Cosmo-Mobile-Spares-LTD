@@ -21,7 +21,9 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminProducts from "./pages/AdminProducts";
 import AdminProductNew from "./pages/AdminProductNew";
 import AdminProductEdit from "./pages/AdminProductEdit";
+import AdminCategories from "./pages/AdminCategories";
 import AdminOrders from "./pages/AdminOrders";
+import AdminSettings from "./pages/AdminSettings";
 
 function App() {
   return (
@@ -44,11 +46,12 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* Admin routes — deliberately outside MainLayout. /admin is now
-                protected by RequireAdmin; the other admin sub-routes below
-                (/admin/products, /admin/orders, etc.) aren't built out yet
-                and are intentionally left unprotected for this phase — see
-                the report for why. */}
+            {/* Admin routes — deliberately outside MainLayout. /admin is
+                protected by RequireAdmin. The other admin sub-routes below
+                (/admin/products, /admin/categories, /admin/orders,
+                /admin/settings, etc.) aren't built out yet and are
+                intentionally left unprotected for this phase — see the
+                report for why. */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/admin"
@@ -61,7 +64,9 @@ function App() {
             <Route path="/admin/products" element={<AdminProducts />} />
             <Route path="/admin/products/new" element={<AdminProductNew />} />
             <Route path="/admin/products/:id/edit" element={<AdminProductEdit />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </BrowserRouter>
       </CartProvider>
