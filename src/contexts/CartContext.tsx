@@ -1,11 +1,7 @@
 // src/contexts/CartContext.tsx
 //
-// Full cart implementation. Persists to localStorage under STORAGE_KEY,
-// storing only { productId, quantity } pairs — cart items are rehydrated
-// against the current product catalogue on load, rather than storing a
-// full product snapshot. This means price/stock changes in the catalogue
-// are always reflected correctly, and malformed/stale localStorage data
-// can be safely ignored per-entry instead of breaking the whole cart.
+// Persists only { productId, quantity } pairs to localStorage.
+// Product details are rehydrated from the current Supabase catalogue.
 
 import {
   createContext,
@@ -16,7 +12,7 @@ import {
 } from "react";
 import type { CartItem } from "../types/cart";
 import type { Product } from "../types/product";
-import { mockProducts } from "../data/products";
+import { fetchActiveProducts } from "@/lib/fetchProducts";
 
 const STORAGE_KEY = "cosmo-cart";
 
@@ -25,11 +21,7 @@ interface StoredCartEntry {
   quantity: number;
 }
 
-function findProduct(productId: string): Product | undefined {
-  return mockProducts.find((product) => product.id === productId);
-}
-
-function readStoredCart(): CartItem[] {
+function readStoredCartEntries(): StoredCartEntry[] {
   if (typeof window === "undefined") return [];
 
   try {
@@ -39,50 +31,28 @@ function readStoredCart(): CartItem[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    const items: CartItem[] = [];
+    return parsed.filter((entry): entry is StoredCartEntry => {
+      if (typeof entry !== "object" || entry === null) return false;
 
-    for (const entry of parsed as unknown[]) {
-      if (
-        typeof entry !== "object" ||
-        entry === null ||
-        typeof (entry as StoredCartEntry).productId !== "string" ||
-        typeof (entry as StoredCartEntry).quantity !== "number"
-      ) {
-        continue; // skip malformed entry rather than failing the whole cart
-      }
+      const candidate = entry as Record<string, unknown>;
 
-      const { productId, quantity } = entry as StoredCartEntry;
-      const product = findProduct(productId);
-      if (!product) continue; // product no longer exists in the catalogue
-
-      const safeQuantity = Math.min(
-        Math.max(Math.floor(quantity), 1),
-        product.stock
+      return (
+        typeof candidate.productId === "string" &&
+        typeof candidate.quantity === "number"
       );
-      if (safeQuantity < 1) continue; // out of stock, drop it
-
-      items.push({ product, quantity: safeQuantity });
-    }
-
-    return items;
+    });
   } catch {
-    return []; // malformed JSON or any other read error — start fresh
+    return [];
   }
 }
 
-function writeStoredCart(items: CartItem[]) {
+function writeStoredCartEntries(entries: StoredCartEntry[]) {
   if (typeof window === "undefined") return;
 
-  const toStore: StoredCartEntry[] = items.map((item) => ({
-    productId: item.product.id,
-    quantity: item.quantity,
-  }));
-
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch {
-    // localStorage unavailable (private browsing, quota, etc.) — fail silently,
-    // cart still works for the current session via React state.
+    // localStorage unavailable — cart still works for the current session.
   }
 }
 
@@ -99,37 +69,141 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => readStoredCart());
+  // Keep localStorage lightweight: only product IDs and quantities.
+  const [storedEntries, setStoredEntries] = useState<StoredCartEntry[]>(() =>
+    readStoredCartEntries()
+  );
+
+  // Current product catalogue loaded from Supabase.
+  const [products, setProducts] = useState<Product[]>([]);
+
+  // Prevent the initial empty product state from overwriting localStorage.
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    writeStoredCart(items);
-  }, [items]);
+    let cancelled = false;
+
+    async function hydrateCart() {
+      try {
+        const currentProducts = await fetchActiveProducts();
+
+        if (cancelled) return;
+
+        setProducts(currentProducts);
+
+        const productById = new Map(
+          currentProducts.map((product) => [product.id, product])
+        );
+
+        setStoredEntries((previousEntries) => {
+          const validEntries: StoredCartEntry[] = [];
+
+          for (const entry of previousEntries) {
+            const product = productById.get(entry.productId);
+
+            // Product was deleted, deactivated, or otherwise unavailable.
+            if (!product || product.stock < 1) continue;
+
+            const safeQuantity = Math.min(
+              Math.max(Math.floor(entry.quantity), 1),
+              product.stock
+            );
+
+            if (safeQuantity < 1) continue;
+
+            validEntries.push({
+              productId: entry.productId,
+              quantity: safeQuantity,
+            });
+          }
+
+          return validEntries;
+        });
+      } catch {
+        // Keep the stored entries intact if Supabase cannot be reached.
+        // A later page refresh will try the hydration again.
+      } finally {
+        if (!cancelled) {
+          setIsHydrated(true);
+        }
+      }
+    }
+
+    hydrateCart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Only write to localStorage after the Supabase hydration has completed.
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    writeStoredCartEntries(storedEntries);
+  }, [storedEntries, isHydrated]);
+
+  // Convert stored IDs/quantities into the current Product objects.
+  const items: CartItem[] = storedEntries
+    .map((entry) => {
+      const product = products.find((item) => item.id === entry.productId);
+
+      if (!product || product.stock < 1) return null;
+
+      const safeQuantity = Math.min(
+        Math.max(Math.floor(entry.quantity), 1),
+        product.stock
+      );
+
+      if (safeQuantity < 1) return null;
+
+      return {
+        product,
+        quantity: safeQuantity,
+      };
+    })
+    .filter((item): item is CartItem => item !== null);
 
   function addItem(product: Product, quantity = 1) {
-    if (product.stock < 1) return; // never add out-of-stock products
+    if (product.stock < 1) return;
 
-    setItems((prev) => {
-      const existing = prev.find((item) => item.product.id === product.id);
+    setStoredEntries((previousEntries) => {
+      const existing = previousEntries.find(
+        (entry) => entry.productId === product.id
+      );
 
       if (existing) {
         const nextQuantity = Math.min(
           existing.quantity + quantity,
           product.stock
         );
-        return prev.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: nextQuantity }
-            : item
+
+        return previousEntries.map((entry) =>
+          entry.productId === product.id
+            ? { ...entry, quantity: nextQuantity }
+            : entry
         );
       }
 
-      const nextQuantity = Math.min(Math.max(quantity, 1), product.stock);
-      return [...prev, { product, quantity: nextQuantity }];
+      const nextQuantity = Math.min(
+        Math.max(Math.floor(quantity), 1),
+        product.stock
+      );
+
+      return [
+        ...previousEntries,
+        {
+          productId: product.id,
+          quantity: nextQuantity,
+        },
+      ];
     });
   }
 
   function removeItem(productId: string) {
-    setItems((prev) => prev.filter((item) => item.product.id !== productId));
+    setStoredEntries((previousEntries) =>
+      previousEntries.filter((entry) => entry.productId !== productId)
+    );
   }
 
   function updateQuantity(productId: string, quantity: number) {
@@ -138,20 +212,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setItems((prev) =>
-      prev.map((item) =>
-        item.product.id === productId
-          ? { ...item, quantity: Math.min(quantity, item.product.stock) }
-          : item
-      )
+    setStoredEntries((previousEntries) =>
+      previousEntries.map((entry) => {
+        if (entry.productId !== productId) return entry;
+
+        const product = products.find((item) => item.id === productId);
+
+        if (!product || product.stock < 1) {
+          return entry;
+        }
+
+        return {
+          ...entry,
+          quantity: Math.min(Math.floor(quantity), product.stock),
+        };
+      })
     );
   }
 
   function clearCart() {
-    setItems([]);
+    setStoredEntries([]);
   }
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
   const subtotal = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0
@@ -172,8 +256,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext);
+
   if (!context) {
     throw new Error("useCart must be used inside a <CartProvider>");
   }
+
   return context;
 }
