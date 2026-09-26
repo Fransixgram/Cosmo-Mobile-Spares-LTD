@@ -33,8 +33,9 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useCart } from "@/contexts/CartContext";
-import { mockProducts } from "@/data/products";
-import { categories } from "@/data/categories";
+import { useShopCategories } from "@/hooks/useShopCategories";
+import { fetchActiveProducts } from "@/lib/fetchProducts";
+import type { Product } from "@/types/product";
 
 const primaryLinks = [
   { title: "Home", url: "/" },
@@ -50,20 +51,47 @@ export default function Navbar() {
   const [openSearch, setOpenSearch] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
   const navigate = useNavigate();
-  const { items } = useCart();
+  const { items, isLoading: cartLoading } = useCart();
+  const { categories } = useShopCategories();
 
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const showCartBadge = !cartLoading && cartCount > 0;
+
+  // Real product catalogue for the search dialog — fetched once on mount,
+  // same helper used to fix the cart rehydration bug. Replaces the old
+  // mockProducts-based search, which could surface fake products/IDs.
+  const [searchableProducts, setSearchableProducts] = React.useState<Product[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadSearchableProducts() {
+      try {
+        const products = await fetchActiveProducts();
+        if (!cancelled) setSearchableProducts(products);
+      } catch {
+        // Quiet fail — search simply returns no results rather than
+        // breaking the whole navbar if this fetch fails.
+      }
+    }
+
+    loadSearchableProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const searchResults = React.useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return [];
-    return mockProducts.filter(
+    return searchableProducts.filter(
       (product) =>
         product.name.toLowerCase().includes(term) ||
         product.category.toLowerCase().includes(term) ||
         product.description.toLowerCase().includes(term)
     );
-  }, [searchTerm]);
+  }, [searchTerm, searchableProducts]);
 
   function goToProduct(id: string) {
     setOpenSearch(false);
@@ -161,7 +189,7 @@ export default function Navbar() {
               onClick={goToCart}
             >
               <ShoppingCart className="size-4" />
-              {cartCount > 0 && (
+              {showCartBadge && (
                 <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
                   {cartCount}
                 </span>
@@ -197,7 +225,7 @@ export default function Navbar() {
                 onClick={goToCart}
               >
                 <ShoppingCart className="size-4" />
-                {cartCount > 0 && (
+                {showCartBadge && (
                   <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
                     {cartCount}
                   </span>
@@ -275,7 +303,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Search Dialog — searches Cosmo Mobile Spares Ltd product data */}
+      {/* Search Dialog — searches real Cosmo Mobile Spares Ltd Supabase
+          products, not mock data */}
       <CommandDialog open={openSearch} onOpenChange={setOpenSearch}>
         <CommandInput
           placeholder="Search products (e.g. iPhone screen, soldering iron)..."

@@ -64,7 +64,12 @@ interface CartContextValue {
   clearCart: () => void;
   itemCount: number;
   subtotal: number;
-}
+  // True until the initial Supabase hydration finishes. Lets consumers
+  // (the Cart page, the navbar badge) distinguish "still loading" from
+  // "genuinely empty", so they don't flash an empty-cart state for
+  // someone who actually has items.
+  isLoading: boolean;
+}   
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
@@ -241,7 +246,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     0
   );
 
-  const value: CartContextValue = {
+    const value: CartContextValue = {
     items,
     addItem,
     removeItem,
@@ -249,6 +254,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     clearCart,
     itemCount,
     subtotal,
+    isLoading: !isHydrated,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

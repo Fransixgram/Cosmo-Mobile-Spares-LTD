@@ -14,7 +14,21 @@ function formatNaira(amount: number) {
 }
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity, itemCount, subtotal } = useCart();
+  const { items, removeItem, updateQuantity, itemCount, subtotal, isLoading } =
+    useCart();
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
+        <span className="flex size-16 items-center justify-center rounded-full bg-muted">
+          <ShoppingCart className="size-7 animate-pulse text-muted-foreground" />
+        </span>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Loading your cart…
+        </p>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
