@@ -33,7 +33,7 @@ export interface Category {
 }
 
 export const categories: Category[] = [
-  { title: "Complete Screens", slug: "screens", icon: Smartphone },
+  { title: "Phone Screens", slug: "screens", icon: Smartphone },
   { title: "Downboard Panels", slug: "downboard-panels", icon: CircuitBoard },
   { title: "Touch Pads", slug: "touch-pads", icon: Fingerprint },
   { title: "Camera Glass", slug: "camera-glass", icon: Camera },

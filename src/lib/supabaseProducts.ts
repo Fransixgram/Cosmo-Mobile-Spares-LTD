@@ -57,12 +57,14 @@ export function mapSupabaseProduct(
   row: SupabaseProductRow,
   categoryNameById: Map<number, string>
 ): Product {
-  const images =
-    row.images && row.images.length > 0
-      ? row.images
-      : row.image_url
-        ? [row.image_url]
-        : [PLACEHOLDER_IMAGE];
+  const images = [
+  ...(row.image_url ? [row.image_url] : []),
+  ...(row.images ?? []).filter((image) => image !== row.image_url),
+];
+
+if (images.length === 0) {
+  images.push(PLACEHOLDER_IMAGE);
+}
 
   const category =
     row.category_id != null

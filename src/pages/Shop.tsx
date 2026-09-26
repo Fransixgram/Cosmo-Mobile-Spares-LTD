@@ -52,9 +52,7 @@ export default function Shop() {
   // Category pills: start with the local list immediately (no empty
   // flash), replace with Supabase data on success, fall back to the
   // local list again on error.
-  const [shopCategories, setShopCategories] = useState<ShopCategory[]>(
-    getLocalShopCategories()
-  );
+const [shopCategories, setShopCategories] = useState<ShopCategory[]>([]); 
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
