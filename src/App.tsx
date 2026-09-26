@@ -46,12 +46,13 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
 
-            {/* Admin routes — deliberately outside MainLayout. /admin is
-                protected by RequireAdmin. The other admin sub-routes below
-                (/admin/products, /admin/categories, /admin/orders,
-                /admin/settings, etc.) aren't built out yet and are
-                intentionally left unprotected for this phase — see the
-                report for why. */}
+            {/* Admin routes — deliberately outside MainLayout. /admin,
+                /admin/products, /admin/products/new, and
+                /admin/products/:id/edit are protected by RequireAdmin.
+                The remaining admin sub-routes below (/admin/categories,
+                /admin/orders, /admin/settings) aren't built out yet and
+                are intentionally left unprotected for this phase — see
+                the report for why. */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route
               path="/admin"
@@ -61,9 +62,30 @@ function App() {
                 </RequireAdmin>
               }
             />
-            <Route path="/admin/products" element={<AdminProducts />} />
-            <Route path="/admin/products/new" element={<AdminProductNew />} />
-            <Route path="/admin/products/:id/edit" element={<AdminProductEdit />} />
+            <Route
+              path="/admin/products"
+              element={
+                <RequireAdmin>
+                  <AdminProducts />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/admin/products/new"
+              element={
+                <RequireAdmin>
+                  <AdminProductNew />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/admin/products/:id/edit"
+              element={
+                <RequireAdmin>
+                  <AdminProductEdit />
+                </RequireAdmin>
+              }
+            />
             <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
