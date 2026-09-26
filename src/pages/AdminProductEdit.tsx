@@ -160,6 +160,9 @@ export default function AdminProductEdit() {
   // Existing images already in Storage (URLs from the DB row)
   const [existingPrimaryUrl, setExistingPrimaryUrl] = useState<string | null>(null);
   const [existingAdditionalUrls, setExistingAdditionalUrls] = useState<string[]>([]);
+  // Remembers a primary image URL the user explicitly removed (as opposed to
+  // replaced), so we can still delete it from Storage after a successful save.
+  const [removedPrimaryUrl, setRemovedPrimaryUrl] = useState<string | null>(null);
 
   // New files chosen to replace/add, same shape as the create form
   const [primaryImage, setPrimaryImage] = useState<SelectedImage | null>(null);
@@ -312,13 +315,17 @@ export default function AdminProductEdit() {
   }
 
   // Removing the primary image: if a new replacement was staged, drop that;
-  // otherwise it means removing the existing DB image.
+  // otherwise it means removing the existing DB image, so remember its URL
+  // for cleanup after the update succeeds.
   function removePrimaryImage() {
     if (primaryImage) {
       URL.revokeObjectURL(primaryImage.previewUrl);
       createdUrlsRef.current.delete(primaryImage.previewUrl);
       setPrimaryImage(null);
       return;
+    }
+    if (existingPrimaryUrl) {
+      setRemovedPrimaryUrl(existingPrimaryUrl);
     }
     setExistingPrimaryUrl(null);
   }
@@ -479,12 +486,13 @@ export default function AdminProductEdit() {
     // row is still pointing at.
     const pathsToDelete: string[] = [];
     if (primaryImage && existingPrimaryUrl) {
+      // A replacement was uploaded — the old one it replaced is gone.
       const oldPath = storagePathFromPublicUrl(existingPrimaryUrl);
       if (oldPath) pathsToDelete.push(oldPath);
-    } else if (!primaryImage && existingPrimaryUrl === null) {
-      // existingPrimaryUrl was cleared to null via removePrimaryImage();
-      // we no longer have the original URL in state to derive a path from
-      // here, so nothing to clean up in this branch — see note below.
+    } else if (removedPrimaryUrl) {
+      // The primary image was removed with no replacement.
+      const oldPath = storagePathFromPublicUrl(removedPrimaryUrl);
+      if (oldPath) pathsToDelete.push(oldPath);
     }
     if (pathsToDelete.length > 0) {
       await supabase.storage.from(STORAGE_BUCKET).remove(pathsToDelete);
