@@ -73,7 +73,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 : "text-xs font-medium text-destructive"
             }
           >
-            {inStock ? "In Stock" : "Out of Stock"}
+            {inStock ? `${product.stock} in stock` : "Out of Stock"}
           </span>
         </div>
 
