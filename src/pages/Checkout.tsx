@@ -4,10 +4,14 @@
 // form builds a mock order payload (logged to the console for dev
 // purposes) and shows a success state. The cart is deliberately NOT
 // cleared here; that happens once a real order/payment flow exists.
+//
+// Supports both delivery and in-store pickup. Address fields are only
+// required/shown when "delivery" is selected; pickup shows the shop
+// address instead and has no delivery fee.
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ShoppingBag, CreditCard, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ShoppingBag, CreditCard, CheckCircle2, MapPin } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/contexts/ToastContext";
 import { Button } from "@/components/ui/button";
@@ -23,10 +27,16 @@ const NIGERIAN_STATES = [
   "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara",
 ];
 
+const PICKUP_ADDRESS =
+  "Shop 26, Fesrach Plaza, Back of BRT, Ikotun, Lagos State, Nigeria";
+
+type DeliveryMethod = "delivery" | "pickup";
+
 interface CheckoutFormValues {
   fullName: string;
   phone: string;
   email: string;
+  deliveryMethod: DeliveryMethod;
   address: string;
   state: string;
   city: string;
@@ -37,6 +47,7 @@ const initialValues: CheckoutFormValues = {
   fullName: "",
   phone: "",
   email: "",
+  deliveryMethod: "delivery",
   address: "",
   state: "",
   city: "",
@@ -72,9 +83,13 @@ function validate(values: CheckoutFormValues): FormErrors {
     errors.email = "Enter a valid email address.";
   }
 
-  if (!values.address.trim()) errors.address = "Delivery address is required.";
-  if (!values.state.trim()) errors.state = "Please select a state.";
-  if (!values.city.trim()) errors.city = "City is required.";
+  // Address fields only matter for delivery — pickup uses the fixed shop
+  // address instead, so there's nothing to validate there.
+  if (values.deliveryMethod === "delivery") {
+    if (!values.address.trim()) errors.address = "Delivery address is required.";
+    if (!values.state.trim()) errors.state = "Please select a state.";
+    if (!values.city.trim()) errors.city = "City is required.";
+  }
 
   return errors;
 }
@@ -88,7 +103,8 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const deliveryFee = getDeliveryFee();
+  const isPickup = values.deliveryMethod === "pickup";
+  const deliveryFee = isPickup ? 0 : getDeliveryFee();
   const total = subtotal + deliveryFee;
 
   function handleChange(
@@ -96,6 +112,18 @@ export default function Checkout() {
   ) {
     const { name, value } = event.target;
     setValues((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function setDeliveryMethod(method: DeliveryMethod) {
+    setValues((prev) => ({ ...prev, deliveryMethod: method }));
+    // Clear any address-related errors left over from switching away from
+    // delivery, so a stale error message doesn't linger under pickup.
+    setErrors((prev) => ({
+      ...prev,
+      address: undefined,
+      state: undefined,
+      city: undefined,
+    }));
   }
 
   function handleSubmit(event: React.FormEvent) {
@@ -110,7 +138,20 @@ export default function Checkout() {
     // Temporary mock order payload — development/testing only.
     // Not sent anywhere: no backend call, no Supabase record, no Paystack.
     const mockOrderPayload = {
-      customer: { ...values },
+      customer: {
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
+      },
+      deliveryMethod: values.deliveryMethod,
+      ...(values.deliveryMethod === "delivery"
+        ? {
+            address: values.address,
+            state: values.state,
+            city: values.city,
+            landmark: values.landmark,
+          }
+        : { pickupAddress: PICKUP_ADDRESS }),
       items: items.map((item) => ({
         productId: item.product.id,
         name: item.product.name,
@@ -259,79 +300,135 @@ export default function Checkout() {
                     </p>
                   )}
                 </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="address">Delivery Address</Label>
-                  <Input
-                    id="address"
-                    name="address"
-                    value={values.address}
-                    onChange={handleChange}
-                    aria-invalid={Boolean(errors.address)}
-                    aria-describedby={errors.address ? "address-error" : undefined}
-                    className="mt-1.5"
-                  />
-                  {errors.address && (
-                    <p id="address-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.address}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="state">State</Label>
-                  <select
-                    id="state"
-                    name="state"
-                    value={values.state}
-                    onChange={handleChange}
-                    aria-invalid={Boolean(errors.state)}
-                    aria-describedby={errors.state ? "state-error" : undefined}
-                    className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <option value="">Select state</option>
-                    {NIGERIAN_STATES.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.state && (
-                    <p id="state-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.state}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    name="city"
-                    value={values.city}
-                    onChange={handleChange}
-                    aria-invalid={Boolean(errors.city)}
-                    aria-describedby={errors.city ? "city-error" : undefined}
-                    className="mt-1.5"
-                  />
-                  {errors.city && (
-                    <p id="city-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.city}
-                    </p>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2">
-                  <Label htmlFor="landmark">Landmark (optional)</Label>
-                  <Input
-                    id="landmark"
-                    name="landmark"
-                    value={values.landmark}
-                    onChange={handleChange}
-                    className="mt-1.5"
-                  />
-                </div>
               </div>
+            </div>
+
+            {/* Delivery method */}
+            <div className="mt-6 rounded-xl border border-border bg-card p-6">
+              <h2 className="text-lg font-semibold">Delivery Method</h2>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("delivery")}
+                  aria-pressed={!isPickup}
+                  className={
+                    !isPickup
+                      ? "rounded-lg border-2 border-primary bg-primary/5 p-4 text-left"
+                      : "rounded-lg border border-input p-4 text-left transition-colors hover:bg-accent"
+                  }
+                >
+                  <span className="block text-sm font-semibold">Delivery</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    We deliver to your address in Lagos or other Nigerian
+                    states.
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("pickup")}
+                  aria-pressed={isPickup}
+                  className={
+                    isPickup
+                      ? "rounded-lg border-2 border-primary bg-primary/5 p-4 text-left"
+                      : "rounded-lg border border-input p-4 text-left transition-colors hover:bg-accent"
+                  }
+                >
+                  <span className="block text-sm font-semibold">
+                    Pickup In-Store
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    Collect your order yourself, no delivery fee.
+                  </span>
+                </button>
+              </div>
+
+              {isPickup ? (
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-4">
+                  <MapPin className="mt-0.5 size-5 shrink-0 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">Pickup Address</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {PICKUP_ADDRESS}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="address">Delivery Address</Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={values.address}
+                      onChange={handleChange}
+                      aria-invalid={Boolean(errors.address)}
+                      aria-describedby={errors.address ? "address-error" : undefined}
+                      className="mt-1.5"
+                    />
+                    {errors.address && (
+                      <p id="address-error" className="mt-1.5 text-xs text-destructive">
+                        {errors.address}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <select
+                      id="state"
+                      name="state"
+                      value={values.state}
+                      onChange={handleChange}
+                      aria-invalid={Boolean(errors.state)}
+                      aria-describedby={errors.state ? "state-error" : undefined}
+                      className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <option value="">Select state</option>
+                      {NIGERIAN_STATES.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.state && (
+                      <p id="state-error" className="mt-1.5 text-xs text-destructive">
+                        {errors.state}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      name="city"
+                      value={values.city}
+                      onChange={handleChange}
+                      aria-invalid={Boolean(errors.city)}
+                      aria-describedby={errors.city ? "city-error" : undefined}
+                      className="mt-1.5"
+                    />
+                    {errors.city && (
+                      <p id="city-error" className="mt-1.5 text-xs text-destructive">
+                        {errors.city}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="landmark">Landmark (optional)</Label>
+                    <Input
+                      id="landmark"
+                      name="landmark"
+                      value={values.landmark}
+                      onChange={handleChange}
+                      className="mt-1.5"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Payment method — UI only, not wired up yet */}
@@ -392,11 +489,15 @@ export default function Checkout() {
                   <dd>{formatNaira(subtotal)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Delivery Fee</dt>
+                  <dt className="text-muted-foreground">
+                    {isPickup ? "Delivery Fee" : "Delivery Fee"}
+                  </dt>
                   <dd>
-                    {deliveryFee === 0
-                      ? "Free (placeholder)"
-                      : formatNaira(deliveryFee)}
+                    {isPickup
+                      ? "Free (Pickup)"
+                      : deliveryFee === 0
+                        ? "Free (placeholder)"
+                        : formatNaira(deliveryFee)}
                   </dd>
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
