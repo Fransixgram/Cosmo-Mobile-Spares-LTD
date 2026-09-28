@@ -4,10 +4,14 @@
 // filtered by category via a query param — no separate category pages.
 
 import { Link } from "react-router-dom";
-import type { Category } from "@/data/categories";
+import type { LucideIcon } from "lucide-react";
 
 interface CategoryCardProps {
-  category: Category;
+  category: {
+    title: string;
+    slug: string;
+    icon: LucideIcon;
+  };
 }
 
 export default function CategoryCard({ category }: CategoryCardProps) {

@@ -7,8 +7,7 @@
 
 import { Link } from "react-router-dom";
 import { MapPin } from "lucide-react";
-import { categories } from "@/data/categories";
-
+import { useShopCategories } from "@/hooks/useShopCategories";
 const navLinks = [
   { title: "Home", url: "/" },
   { title: "Shop", url: "/shop" },
@@ -19,6 +18,8 @@ const navLinks = [
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const { categories } = useShopCategories();
+
 
   return (
     <footer className="border-t border-border bg-background">
