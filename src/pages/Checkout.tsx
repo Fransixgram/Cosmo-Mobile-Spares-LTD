@@ -1,13 +1,11 @@
 // src/pages/Checkout.tsx
 //
-// Checkout UI only — no backend, no Supabase, no Paystack. Submitting the
-// form builds a mock order payload (logged to the console for dev
-// purposes) and shows a success state. The cart is deliberately NOT
-// cleared here; that happens once a real order/payment flow exists.
-//
-// Supports both delivery and in-store pickup. Address fields are only
-// required/shown when "delivery" is selected; pickup shows the shop
-// address instead and has no delivery fee.
+// Real checkout: creates an order + order_items via the create-order Edge
+// Function (server-side, avoids RLS insert-then-read conflicts for guest
+// checkout), then opens Paystack's Inline popup for payment. On successful
+// payment, calls the verify-paystack-payment Edge Function (which holds
+// the secret key) to confirm the payment server-side and mark the order
+// paid. Supports both delivery and in-store pickup.
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -18,6 +16,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getDeliveryFee } from "@/lib/delivery";
+import { supabase } from "@/lib/supabase";
+
+// Safe to expose in frontend code — this is Paystack's PUBLIC key.
+const PAYSTACK_PUBLIC_KEY = "pk_test_633918ab7d2c20858c10db9ec1eb054aa447b409";
+
+declare global {
+  interface Window {
+    PaystackPop?: {
+      setup: (options: PaystackSetupOptions) => { openIframe: () => void };
+    };
+  }
+}
+
+interface PaystackSetupOptions {
+  key: string;
+  email: string;
+  amount: number;
+  currency?: string;
+  ref?: string;
+  metadata?: Record<string, unknown>;
+  callback: (response: { reference: string }) => void;
+  onClose: () => void;
+}
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue",
@@ -83,8 +104,6 @@ function validate(values: CheckoutFormValues): FormErrors {
     errors.email = "Enter a valid email address.";
   }
 
-  // Address fields only matter for delivery — pickup uses the fixed shop
-  // address instead, so there's nothing to validate there.
   if (values.deliveryMethod === "delivery") {
     if (!values.address.trim()) errors.address = "Delivery address is required.";
     if (!values.state.trim()) errors.state = "Please select a state.";
@@ -95,13 +114,14 @@ function validate(values: CheckoutFormValues): FormErrors {
 }
 
 export default function Checkout() {
-  const { items, subtotal } = useCart();
+  const { items, subtotal, clearCart } = useCart();
   const { showToast } = useToast();
 
   const [values, setValues] = useState<CheckoutFormValues>(initialValues);
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const isPickup = values.deliveryMethod === "pickup";
   const deliveryFee = isPickup ? 0 : getDeliveryFee();
@@ -116,8 +136,6 @@ export default function Checkout() {
 
   function setDeliveryMethod(method: DeliveryMethod) {
     setValues((prev) => ({ ...prev, deliveryMethod: method }));
-    // Clear any address-related errors left over from switching away from
-    // delivery, so a stale error message doesn't linger under pickup.
     setErrors((prev) => ({
       ...prev,
       address: undefined,
@@ -126,53 +144,100 @@ export default function Checkout() {
     }));
   }
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setCheckoutError(null);
 
     const validationErrors = validate(values);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
+    if (!window.PaystackPop) {
+      setCheckoutError(
+        "Payment system failed to load. Please refresh the page and try again."
+      );
+      return;
+    }
+
     setSubmitting(true);
 
-    // Temporary mock order payload — development/testing only.
-    // Not sent anywhere: no backend call, no Supabase record, no Paystack.
-    const mockOrderPayload = {
-      customer: {
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
-      },
-      deliveryMethod: values.deliveryMethod,
-      ...(values.deliveryMethod === "delivery"
-        ? {
-            address: values.address,
-            state: values.state,
-            city: values.city,
-            landmark: values.landmark,
-          }
-        : { pickupAddress: PICKUP_ADDRESS }),
-      items: items.map((item) => ({
-        productId: item.product.id,
-        name: item.product.name,
-        unitPrice: item.product.price,
-        quantity: item.quantity,
-        lineTotal: item.product.price * item.quantity,
-      })),
-      subtotal,
-      deliveryFee,
-      total,
-      submittedAt: new Date().toISOString(),
-    };
+    // Create the order + order items via the create-order Edge Function.
+    // This runs server-side with full database access, so guests never
+    // need direct SELECT/INSERT access to the orders table themselves —
+    // avoiding the RLS "insert-then-read-back" conflict a direct insert
+    // ran into (INSERT was allowed for guests, but .select() after it
+    // also requires SELECT, which only admins have).
+    const { data: createResult, error: createError } = await supabase.functions.invoke(
+      "create-order",
+      {
+        body: {
+          fullName: values.fullName.trim(),
+          phone: values.phone.trim(),
+          email: values.email.trim(),
+          deliveryMethod: values.deliveryMethod,
+          address: isPickup ? null : values.address.trim(),
+          state: isPickup ? null : values.state.trim(),
+          city: isPickup ? null : values.city.trim(),
+          landmark: isPickup ? null : values.landmark.trim() || null,
+          subtotal,
+          deliveryFee,
+          total,
+          items: items.map((item) => ({
+            productId: Number(item.product.id),
+            productName: item.product.name,
+            unitPrice: item.product.price,
+            quantity: item.quantity,
+          })),
+        },
+      }
+    );
 
-    // eslint-disable-next-line no-console
-    console.log("[Cosmo Mobile Spares Ltd] Mock order payload:", mockOrderPayload);
-
-    setTimeout(() => {
+    if (createError || !createResult?.success) {
       setSubmitting(false);
-      setSubmitted(true);
-      showToast("Order submitted (test mode)");
-    }, 400);
+      setCheckoutError("Couldn't create your order. Please try again.");
+      return;
+    }
+
+    const orderId: string = createResult.orderId;
+
+    // Open Paystack's payment popup.
+    const paystack = window.PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: values.email.trim(),
+      amount: Math.round(total * 100), // kobo
+      currency: "NGN",
+      metadata: { order_id: orderId },
+      callback: (response) => {
+        void verifyPayment(orderId, response.reference);
+      },
+      onClose: () => {
+        // Customer closed the popup without paying — order stays "pending"
+        // in the database; they can try again.
+        setSubmitting(false);
+      },
+    });
+
+    paystack.openIframe();
+  }
+
+  async function verifyPayment(orderId: string, reference: string) {
+    const { data, error } = await supabase.functions.invoke(
+      "verify-paystack-payment",
+      { body: { orderId, reference } }
+    );
+
+    setSubmitting(false);
+
+    if (error || !data?.success) {
+      setCheckoutError(
+        `We couldn't confirm your payment automatically. Please contact us with this reference: ${reference}`
+      );
+      return;
+    }
+
+    clearCart();
+    setSubmitted(true);
+    showToast("Payment successful — order placed!");
   }
 
   // Cart guard — no items, no checkout form.
@@ -195,7 +260,6 @@ export default function Checkout() {
     );
   }
 
-  // Mock success state.
   if (submitted) {
     return (
       <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
@@ -203,17 +267,13 @@ export default function Checkout() {
           <CheckCircle2 className="size-7 text-emerald-600" />
         </span>
         <h1 className="mt-6 text-2xl font-bold tracking-tight">
-          Order submitted (test mode)
+          Order placed successfully
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          This is a development preview — no real order was placed and no
-          payment was processed. Real checkout will be connected in a later
-          phase.
+          Thank you for your order! We'll be in touch with updates on your
+          {values.deliveryMethod === "pickup" ? " pickup" : " delivery"}.
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-          <Button asChild variant="outline" size="lg">
-            <Link to="/cart">Back to Cart</Link>
-          </Button>
           <Button asChild size="lg">
             <Link to="/shop">Continue Shopping</Link>
           </Button>
@@ -238,7 +298,6 @@ export default function Checkout() {
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Customer information */}
           <div className="lg:col-span-2">
             <div className="rounded-xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Customer Information</h2>
@@ -252,13 +311,10 @@ export default function Checkout() {
                     value={values.fullName}
                     onChange={handleChange}
                     aria-invalid={Boolean(errors.fullName)}
-                    aria-describedby={errors.fullName ? "fullName-error" : undefined}
                     className="mt-1.5"
                   />
                   {errors.fullName && (
-                    <p id="fullName-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.fullName}
-                    </p>
+                    <p className="mt-1.5 text-xs text-destructive">{errors.fullName}</p>
                   )}
                 </div>
 
@@ -272,13 +328,10 @@ export default function Checkout() {
                     value={values.phone}
                     onChange={handleChange}
                     aria-invalid={Boolean(errors.phone)}
-                    aria-describedby={errors.phone ? "phone-error" : undefined}
                     className="mt-1.5"
                   />
                   {errors.phone && (
-                    <p id="phone-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.phone}
-                    </p>
+                    <p className="mt-1.5 text-xs text-destructive">{errors.phone}</p>
                   )}
                 </div>
 
@@ -291,19 +344,15 @@ export default function Checkout() {
                     value={values.email}
                     onChange={handleChange}
                     aria-invalid={Boolean(errors.email)}
-                    aria-describedby={errors.email ? "email-error" : undefined}
                     className="mt-1.5"
                   />
                   {errors.email && (
-                    <p id="email-error" className="mt-1.5 text-xs text-destructive">
-                      {errors.email}
-                    </p>
+                    <p className="mt-1.5 text-xs text-destructive">{errors.email}</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Delivery method */}
             <div className="mt-6 rounded-xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Delivery Method</h2>
 
@@ -364,13 +413,10 @@ export default function Checkout() {
                       value={values.address}
                       onChange={handleChange}
                       aria-invalid={Boolean(errors.address)}
-                      aria-describedby={errors.address ? "address-error" : undefined}
                       className="mt-1.5"
                     />
                     {errors.address && (
-                      <p id="address-error" className="mt-1.5 text-xs text-destructive">
-                        {errors.address}
-                      </p>
+                      <p className="mt-1.5 text-xs text-destructive">{errors.address}</p>
                     )}
                   </div>
 
@@ -382,7 +428,6 @@ export default function Checkout() {
                       value={values.state}
                       onChange={handleChange}
                       aria-invalid={Boolean(errors.state)}
-                      aria-describedby={errors.state ? "state-error" : undefined}
                       className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <option value="">Select state</option>
@@ -393,9 +438,7 @@ export default function Checkout() {
                       ))}
                     </select>
                     {errors.state && (
-                      <p id="state-error" className="mt-1.5 text-xs text-destructive">
-                        {errors.state}
-                      </p>
+                      <p className="mt-1.5 text-xs text-destructive">{errors.state}</p>
                     )}
                   </div>
 
@@ -407,13 +450,10 @@ export default function Checkout() {
                       value={values.city}
                       onChange={handleChange}
                       aria-invalid={Boolean(errors.city)}
-                      aria-describedby={errors.city ? "city-error" : undefined}
                       className="mt-1.5"
                     />
                     {errors.city && (
-                      <p id="city-error" className="mt-1.5 text-xs text-destructive">
-                        {errors.city}
-                      </p>
+                      <p className="mt-1.5 text-xs text-destructive">{errors.city}</p>
                     )}
                   </div>
 
@@ -431,26 +471,30 @@ export default function Checkout() {
               )}
             </div>
 
-            {/* Payment method — UI only, not wired up yet */}
             <div className="mt-6 rounded-xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Payment Method</h2>
-              <div className="mt-4 flex items-start gap-3 rounded-lg border border-dashed border-border bg-muted/50 p-4">
+              <div className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-4">
                 <CreditCard className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">
-                    Online payment — coming soon
-                  </p>
+                  <p className="text-sm font-medium">Pay securely with Paystack</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Payment processing isn't connected yet. Placing an order
-                    right now only submits a test order for development
-                    purposes — no payment will be requested or charged.
+                    Card or bank transfer. You'll complete payment in a secure
+                    popup after placing your order.
                   </p>
                 </div>
               </div>
             </div>
+
+            {checkoutError && (
+              <div
+                role="alert"
+                className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                {checkoutError}
+              </div>
+            )}
           </div>
 
-          {/* Order summary */}
           <div className="lg:col-span-1">
             <div className="rounded-xl border border-border bg-card p-6">
               <h2 className="text-lg font-semibold">Order Summary</h2>
@@ -489,9 +533,7 @@ export default function Checkout() {
                   <dd>{formatNaira(subtotal)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-muted-foreground">
-                    {isPickup ? "Delivery Fee" : "Delivery Fee"}
-                  </dt>
+                  <dt className="text-muted-foreground">Delivery Fee</dt>
                   <dd>
                     {isPickup
                       ? "Free (Pickup)"
@@ -512,11 +554,11 @@ export default function Checkout() {
                 className="mt-6 w-full"
                 disabled={submitting}
               >
-                {submitting ? "Placing Order..." : "Place Order"}
+                {submitting ? "Processing..." : "Place Order & Pay"}
               </Button>
 
               <p className="mt-3 text-center text-xs text-muted-foreground">
-                Test mode — no payment will be requested.
+                You'll be asked to pay securely via Paystack.
               </p>
             </div>
           </div>
