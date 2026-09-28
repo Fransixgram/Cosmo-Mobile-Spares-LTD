@@ -179,13 +179,9 @@ export default function Checkout() {
           state: isPickup ? null : values.state.trim(),
           city: isPickup ? null : values.city.trim(),
           landmark: isPickup ? null : values.landmark.trim() || null,
-          subtotal,
-          deliveryFee,
-          total,
+          expectedTotal: total,
           items: items.map((item) => ({
             productId: Number(item.product.id),
-            productName: item.product.name,
-            unitPrice: item.product.price,
             quantity: item.quantity,
           })),
         },
@@ -194,17 +190,21 @@ export default function Checkout() {
 
     if (createError || !createResult?.success) {
       setSubmitting(false);
-      setCheckoutError("Couldn't create your order. Please try again.");
+      setCheckoutError(
+        createResult?.error ?? "Couldn't create your order. Please try again."
+      );
       return;
     }
 
     const orderId: string = createResult.orderId;
+    // Charge exactly what the server calculated and saved on the order.
+    const amountToCharge: number = createResult.total;
 
     // Open Paystack's payment popup.
     const paystack = window.PaystackPop.setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: values.email.trim(),
-      amount: Math.round(total * 100), // kobo
+      amount: Math.round(amountToCharge * 100), // kobo
       currency: "NGN",
       metadata: { order_id: orderId },
       callback: (response) => {
