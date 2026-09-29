@@ -86,7 +86,14 @@ function App() {
                 </RequireAdmin>
               }
             />
-                      <Route path="/admin/categories" element={<AdminCategories />} />
+                                 <Route
+              path="/admin/categories"
+              element={
+                <RequireAdmin>
+                  <AdminCategories />
+                </RequireAdmin>
+              }
+            />
             <Route
               path="/admin/orders"
               element={
