@@ -83,15 +83,13 @@ export default {
     }
 
     // Genuine, matching payment confirmed — update the order.
-    const { error: updateError } = await ctx.supabaseAdmin
-      .from("orders")
-      .update({
-        payment_status: "paid",
-        paystack_reference: reference,
-        order_status: "Confirmed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
+    // mark_order_paid marks the order paid AND reduces stock in one database
+    // transaction. If the order was already paid it does nothing, so stock is
+    // never reduced twice.
+    const { error: updateError } = await ctx.supabaseAdmin.rpc("mark_order_paid", {
+      p_order_id: orderId,
+      p_reference: reference,
+    });
 
     if (updateError) {
       return Response.json(
