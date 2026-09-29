@@ -86,8 +86,15 @@ function App() {
                 </RequireAdmin>
               }
             />
-            <Route path="/admin/categories" element={<AdminCategories />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
+                      <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route
+              path="/admin/orders"
+              element={
+                <RequireAdmin>
+                  <AdminOrders />
+                </RequireAdmin>
+              }
+            />
             <Route path="/admin/settings" element={<AdminSettings />} />
           </Routes>
         </BrowserRouter>
