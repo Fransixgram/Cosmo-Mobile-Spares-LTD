@@ -102,7 +102,14 @@ function App() {
                 </RequireAdmin>
               }
             />
-            <Route path="/admin/settings" element={<AdminSettings />} />
+                       <Route
+              path="/admin/settings"
+              element={
+                <RequireAdmin>
+                  <AdminSettings />
+                </RequireAdmin>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </CartProvider>
