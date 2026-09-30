@@ -7,6 +7,7 @@
 // resolution — no second product/category system.
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Product } from "@/types/product";
 import { mapSupabaseProduct, type SupabaseProductRow } from "@/lib/supabaseProducts";
 import { supabase } from "@/lib/supabase";
@@ -67,13 +68,22 @@ export default function FeaturedProductsSection() {
   return (
     <section className="border-b border-border bg-background">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Featured Products
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            A few of what we currently have in stock.
-          </p>
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span className="inline-block h-1 w-10 rounded-full bg-brand-yellow" aria-hidden="true" />
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-brand-navy sm:text-3xl">
+              Featured Products
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A few of what we currently have in stock.
+            </p>
+          </div>
+          <Link
+            to="/shop"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            View All Products &rarr;
+          </Link>
         </div>
 
         {loading ? (

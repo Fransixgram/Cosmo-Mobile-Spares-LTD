@@ -30,7 +30,8 @@ export default function WhyChooseSection() {
     <section className="border-b border-border bg-muted/30">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <span className="inline-block h-1 w-10 rounded-full bg-brand-yellow" aria-hidden="true" />
+          <h2 className="mt-3 text-2xl font-bold tracking-tight text-brand-navy sm:text-3xl">
             Why Choose Cosmo
           </h2>
         </div>
@@ -39,12 +40,12 @@ export default function WhyChooseSection() {
           {benefits.map(({ icon: Icon, title, description }) => (
             <div
               key={title}
-              className="rounded-xl border border-border bg-card p-6"
+              className="rounded-xl border border-border bg-white p-6 shadow-sm"
             >
-              <span className="flex size-11 items-center justify-center rounded-full bg-primary/10">
-                <Icon className="size-5 text-primary" />
+              <span className="flex size-11 items-center justify-center rounded-full bg-brand-navy/10 text-brand-navy">
+                <Icon className="size-5" />
               </span>
-              <h3 className="mt-4 text-sm font-semibold">{title}</h3>
+              <h3 className="mt-4 text-sm font-semibold text-foreground">{title}</h3>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {description}
               </p>

@@ -10,7 +10,8 @@ export default function CategoriesSection() {
     <section className="border-b border-border bg-background">
       <div className="mx-auto max-w-6xl px-4 py-16">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <span className="inline-block h-1 w-10 rounded-full bg-brand-yellow" aria-hidden="true" />
+          <h2 className="mt-3 text-2xl font-bold tracking-tight text-brand-navy sm:text-3xl">
             Shop by Category
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">

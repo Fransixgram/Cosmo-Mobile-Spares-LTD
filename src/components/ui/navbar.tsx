@@ -47,6 +47,13 @@ const secondaryLinks = [
   { title: "Contact", url: "/contact" },
 ];
 
+// Shared styling for the desktop nav links (Home, Shop, About, Contact) and
+// the Categories trigger, so all four look consistent. Hover picks up the
+// faint yellow --accent tint automatically (set in src/index.css Phase 1) —
+// no yellow class needed here.
+const navLinkClass =
+  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-brand-navy/80 transition-colors hover:bg-accent hover:text-brand-navy";
+
 export default function Navbar() {
   const [openSearch, setOpenSearch] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -104,38 +111,34 @@ export default function Navbar() {
   }
 
   return (
-    <section className="border-b py-4">
+    <section className="border-b border-border bg-white py-4 shadow-sm">
       <div className="container mx-auto max-w-6xl px-4">
         {/* Desktop Navbar */}
         <nav className="hidden items-center justify-between lg:flex">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-lg font-bold tracking-tight">
-                Cosmo<span className="text-primary"> Mobile Spares</span>
+              <span className="text-xl font-extrabold tracking-tight text-brand-navy">
+                Cosmo<span className="font-semibold"> Mobile Spares</span>
               </span>
             </Link>
 
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <Link
-                    to="/"
-                    className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
+                  <Link to="/" className={navLinkClass}>
                     Home
                   </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <Link
-                    to="/shop"
-                    className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                  >
+                  <Link to="/shop" className={navLinkClass}>
                     Shop
                   </Link>
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger>Categories</NavigationMenuTrigger>
+                  <NavigationMenuTrigger className="text-brand-navy/80 hover:text-brand-navy data-[state=open]:text-brand-navy">
+                    Categories
+                  </NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <ul className="grid w-[420px] grid-cols-2 gap-1 p-3">
                       {categories.map((category) => (
@@ -143,7 +146,7 @@ export default function Navbar() {
                           <NavigationMenuLink asChild>
                             <Link
                               to={`/shop?category=${category.slug}`}
-                              className="flex select-none items-start gap-3 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
+                              className="flex select-none items-start gap-3 rounded-md p-3 leading-none text-brand-navy no-underline outline-none transition-colors hover:bg-accent hover:text-brand-navy"
                             >
                               <category.icon className="size-5 shrink-0" />
                               <span className="text-sm font-medium">
@@ -159,10 +162,7 @@ export default function Navbar() {
 
                 {secondaryLinks.map((link) => (
                   <NavigationMenuItem key={link.title}>
-                    <Link
-                      to={link.url}
-                      className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                    >
+                    <Link to={link.url} className={navLinkClass}>
                       {link.title}
                     </Link>
                   </NavigationMenuItem>
@@ -176,6 +176,7 @@ export default function Navbar() {
               variant="ghost"
               size="icon"
               aria-label="Search products"
+              className="text-brand-navy hover:bg-accent hover:text-brand-navy"
               onClick={() => setOpenSearch(true)}
             >
               <Search className="size-4" />
@@ -184,7 +185,7 @@ export default function Navbar() {
             <Button
               variant="ghost"
               size="icon"
-              className="relative"
+              className="relative text-brand-navy hover:bg-accent hover:text-brand-navy"
               aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
               onClick={goToCart}
             >
@@ -202,8 +203,8 @@ export default function Navbar() {
         <div className="block lg:hidden">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-base font-bold tracking-tight">
-                Cosmo<span className="text-primary"> Mobile Spares</span>
+              <span className="text-lg font-extrabold tracking-tight text-brand-navy">
+                Cosmo<span className="font-semibold"> Mobile Spares</span>
               </span>
             </Link>
 
@@ -212,6 +213,7 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 aria-label="Search products"
+                className="text-brand-navy hover:bg-accent hover:text-brand-navy"
                 onClick={() => setOpenSearch(true)}
               >
                 <Search className="size-4" />
@@ -220,7 +222,7 @@ export default function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative"
+                className="relative text-brand-navy hover:bg-accent hover:text-brand-navy"
                 aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
                 onClick={goToCart}
               >
@@ -234,15 +236,20 @@ export default function Navbar() {
 
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Open menu">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open menu"
+                    className="text-brand-navy hover:bg-accent hover:text-brand-navy"
+                  >
                     <Menu className="size-4" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent className="overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>
-                      <span className="text-base font-bold tracking-tight">
-                        Cosmo<span className="text-primary"> Mobile Spares</span>
+                      <span className="text-base font-extrabold tracking-tight text-brand-navy">
+                        Cosmo<span className="font-semibold"> Mobile Spares</span>
                       </span>
                     </SheetTitle>
                   </SheetHeader>
@@ -253,7 +260,7 @@ export default function Navbar() {
                         <Link
                           key={link.title}
                           to={link.url}
-                          className="rounded-md px-2 py-2 font-semibold hover:bg-muted"
+                          className="rounded-md px-2 py-2 font-semibold text-brand-navy hover:bg-accent"
                         >
                           {link.title}
                         </Link>
@@ -262,7 +269,7 @@ export default function Navbar() {
 
                     <Accordion type="single" collapsible className="flex w-full flex-col gap-4">
                       <AccordionItem value="categories" className="border-b-0">
-                        <AccordionTrigger className="py-0 font-semibold hover:no-underline">
+                        <AccordionTrigger className="py-0 font-semibold text-brand-navy hover:no-underline">
                           Categories
                         </AccordionTrigger>
                         <AccordionContent className="mt-2">
@@ -271,7 +278,7 @@ export default function Navbar() {
                               <Link
                                 key={category.slug}
                                 to={`/shop?category=${category.slug}`}
-                                className="flex select-none items-center gap-3 rounded-md p-3 leading-none outline-none transition-colors hover:bg-muted hover:text-accent-foreground"
+                                className="flex select-none items-center gap-3 rounded-md p-3 leading-none text-brand-navy outline-none transition-colors hover:bg-accent"
                               >
                                 <category.icon className="size-5 shrink-0" />
                                 <span className="text-sm font-medium">
@@ -289,7 +296,7 @@ export default function Navbar() {
                         <Link
                           key={link.title}
                           to={link.url}
-                          className="rounded-md px-2 py-2 font-semibold hover:bg-muted"
+                          className="rounded-md px-2 py-2 font-semibold text-brand-navy hover:bg-accent"
                         >
                           {link.title}
                         </Link>

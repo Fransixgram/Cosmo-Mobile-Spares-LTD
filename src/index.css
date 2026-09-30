@@ -3,34 +3,66 @@
 
 /*
  * Color tokens required by the shadcn/Radix UI components in
- * src/components/ui/. Without these, utilities like bg-background,
- * text-muted-foreground, and border-border have no color to resolve to.
- * Standard shadcn "neutral" palette — safe to restyle later once real
- * brand colors are chosen.
+ * src/components/ui/. Utilities like bg-background, text-muted-foreground,
+ * and border-border resolve to these values.
+ *
+ * Updated to the Cosmo Mobile Spares brand system (from the company
+ * flier): deep navy (#080878), strong red (#ED1C24), bright yellow
+ * (#FFF200), on a white background with dark charcoal (#171717) body
+ * text. Navy is the core brand color; red drives primary actions/CTAs;
+ * yellow is reserved for sparing highlight use via --accent and the
+ * standalone brand-yellow utility. No component files were changed —
+ * only these tokens.
  */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Raw Cosmo brand colors — also exposed as brand-* utilities below
+     for deliberate, one-off use (e.g. bg-brand-navy) separate from the
+     semantic tokens beneath them. */
+  --brand-navy: #080878;
+  --brand-red: #ED1C24;
+  --brand-yellow: #FFF200;
+
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+
+  /* Primary = the app's main action color (buttons, links). Mapped to
+     Cosmo red per brand direction. */
+  --primary: var(--brand-red);
+  --primary-foreground: #ffffff;
+
+  /* Secondary = a light, brand-tinted neutral for secondary buttons
+     and subtle backgrounds. */
+  --secondary: color-mix(in srgb, var(--brand-navy) 4%, white);
+  --secondary-foreground: var(--brand-navy);
+
+  /* Muted = the lightest neutral, for very subtle section backgrounds. */
+  --muted: color-mix(in srgb, var(--brand-navy) 3%, white);
+  --muted-foreground: color-mix(in srgb, var(--foreground) 55%, white);
+
+  /* Accent = hover/emphasis backgrounds throughout the existing
+     components (hover:bg-accent, dropdown items, etc). Given a faint
+     yellow tint so the brand's highlight color shows up sparingly and
+     automatically, without any section reading as "bright yellow." */
+  --accent: color-mix(in srgb, var(--brand-yellow) 8%, white);
+  --accent-foreground: var(--brand-navy);
+
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+
+  --border: color-mix(in srgb, var(--brand-navy) 10%, white);
+  --input: color-mix(in srgb, var(--brand-navy) 10%, white);
+  --ring: var(--brand-navy);
 }
 
 @theme inline {
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-red: var(--brand-red);
+  --color-brand-yellow: var(--brand-yellow);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
