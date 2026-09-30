@@ -1,11 +1,7 @@
 // src/components/ProductCard.tsx
-//
-// Reusable product card. "Add to Cart" now uses the real CartContext.
-// No cart logic lives here — this component only calls addItem() and
-// reads the current in-cart quantity to respect stock limits.
 
 import { Link } from "react-router-dom";
-import { ShoppingCart } from "lucide-react";
+import { ArrowUpRight, ShoppingCart } from "lucide-react";
 import type { Product } from "@/types/product";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
@@ -40,47 +36,63 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-shadow hover:shadow-md">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-navy/15 hover:shadow-lg">
       <Link
         to={`/product/${product.id}`}
-        className="block aspect-square overflow-hidden bg-muted"
+        className="relative block aspect-square overflow-hidden bg-muted"
       >
         <img
           src={product.images[0]}
           alt={product.name}
           loading="lazy"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-      </Link>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-brand-navy shadow-sm">
           {product.category}
         </span>
 
-        <Link to={`/product/${product.id}`} className="hover:underline">
-          <h3 className="text-sm font-semibold leading-snug">{product.name}</h3>
+        <span
+          className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-white/95 text-brand-navy opacity-0 shadow-sm transition-all duration-200 group-hover:opacity-100"
+          aria-hidden="true"
+        >
+          <ArrowUpRight className="size-4" />
+        </span>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-4">
+        <Link to={`/product/${product.id}`} className="group/title">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground transition-colors group-hover/title:text-brand-navy">
+            {product.name}
+          </h3>
         </Link>
 
-        <div className="mt-auto flex items-center justify-between pt-1">
-          <span className="text-base font-semibold">
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <span className="text-lg font-bold text-brand-navy">
             {formatNaira(product.price)}
           </span>
+
           <span
             className={
               inStock
-                ? "text-xs font-medium text-emerald-600"
-                : "text-xs font-medium text-destructive"
+                ? "text-[11px] font-semibold text-emerald-600"
+                : "text-[11px] font-semibold text-destructive"
             }
           >
             {inStock ? `${product.stock} in stock` : "Out of Stock"}
           </span>
         </div>
 
-        <div className="mt-2 flex gap-2">
-          <Button asChild variant="outline" size="sm" className="flex-1">
+        <div className="mt-4 flex gap-2">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="flex-1 border-brand-navy/20 hover:bg-brand-navy/5 hover:text-brand-navy"
+          >
             <Link to={`/product/${product.id}`}>View Product</Link>
           </Button>
+
           <Button
             size="sm"
             className="flex-1"
@@ -99,6 +111,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </Button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

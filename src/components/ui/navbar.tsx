@@ -47,16 +47,14 @@ const secondaryLinks = [
   { title: "Contact", url: "/contact" },
 ];
 
-// Shared styling for the desktop nav links (Home, Shop, About, Contact) and
-// the Categories trigger, so all four look consistent. Hover picks up the
-// faint yellow --accent tint automatically (set in src/index.css Phase 1) —
-// no yellow class needed here.
 const navLinkClass =
-  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium text-brand-navy/80 transition-colors hover:bg-accent hover:text-brand-navy";
+  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium text-brand-navy/80 transition-colors hover:bg-accent hover:text-brand-navy";
 
 export default function Navbar() {
   const [openSearch, setOpenSearch] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [isScrolled, setIsScrolled] = React.useState(false);
+
   const navigate = useNavigate();
   const { items, isLoading: cartLoading } = useCart();
   const { categories } = useShopCategories();
@@ -64,10 +62,25 @@ export default function Navbar() {
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const showCartBadge = !cartLoading && cartCount > 0;
 
-  // Real product catalogue for the search dialog — fetched once on mount,
-  // same helper used to fix the cart rehydration bug. Replaces the old
-  // mockProducts-based search, which could surface fake products/IDs.
-  const [searchableProducts, setSearchableProducts] = React.useState<Product[]>([]);
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 24);
+    };
+
+    handleScroll();
+
+    window.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const [searchableProducts, setSearchableProducts] = React.useState<Product[]>(
+    []
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -75,10 +88,12 @@ export default function Navbar() {
     async function loadSearchableProducts() {
       try {
         const products = await fetchActiveProducts();
-        if (!cancelled) setSearchableProducts(products);
+
+        if (!cancelled) {
+          setSearchableProducts(products);
+        }
       } catch {
-        // Quiet fail — search simply returns no results rather than
-        // breaking the whole navbar if this fetch fails.
+        // Quiet fail — search simply returns no results.
       }
     }
 
@@ -91,7 +106,9 @@ export default function Navbar() {
 
   const searchResults = React.useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
+
     if (!term) return [];
+
     return searchableProducts.filter(
       (product) =>
         product.name.toLowerCase().includes(term) ||
@@ -111,13 +128,27 @@ export default function Navbar() {
   }
 
   return (
-    <section className="border-b border-border bg-white py-4 shadow-sm">
-      <div className="container mx-auto max-w-6xl px-4">
+    <section
+      className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
+        isScrolled
+          ? "border-border/70 bg-white/90 shadow-md backdrop-blur-lg"
+          : "border-border bg-white shadow-sm"
+      }`}
+    >
+      <div
+        className={`container mx-auto max-w-6xl px-4 transition-all duration-300 ${
+          isScrolled ? "py-2" : "py-4"
+        }`}
+      >
         {/* Desktop Navbar */}
         <nav className="hidden items-center justify-between lg:flex">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl font-extrabold tracking-tight text-brand-navy">
+              <span
+                className={`font-extrabold tracking-tight text-brand-navy transition-all duration-300 ${
+                  isScrolled ? "text-lg" : "text-xl"
+                }`}
+              >
                 Cosmo<span className="font-semibold"> Mobile Spares</span>
               </span>
             </Link>
@@ -129,6 +160,7 @@ export default function Navbar() {
                     Home
                   </Link>
                 </NavigationMenuItem>
+
                 <NavigationMenuItem>
                   <Link to="/shop" className={navLinkClass}>
                     Shop
@@ -139,6 +171,7 @@ export default function Navbar() {
                   <NavigationMenuTrigger className="text-brand-navy/80 hover:text-brand-navy data-[state=open]:text-brand-navy">
                     Categories
                   </NavigationMenuTrigger>
+
                   <NavigationMenuContent>
                     <ul className="grid w-[420px] grid-cols-2 gap-1 p-3">
                       {categories.map((category) => (
@@ -186,10 +219,13 @@ export default function Navbar() {
               variant="ghost"
               size="icon"
               className="relative text-brand-navy hover:bg-accent hover:text-brand-navy"
-              aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+              aria-label={`Cart, ${cartCount} item${
+                cartCount === 1 ? "" : "s"
+              }`}
               onClick={goToCart}
             >
               <ShoppingCart className="size-4" />
+
               {showCartBadge && (
                 <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
                   {cartCount}
@@ -203,7 +239,11 @@ export default function Navbar() {
         <div className="block lg:hidden">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-lg font-extrabold tracking-tight text-brand-navy">
+              <span
+                className={`font-extrabold tracking-tight text-brand-navy transition-all duration-300 ${
+                  isScrolled ? "text-base" : "text-lg"
+                }`}
+              >
                 Cosmo<span className="font-semibold"> Mobile Spares</span>
               </span>
             </Link>
@@ -223,10 +263,13 @@ export default function Navbar() {
                 variant="ghost"
                 size="icon"
                 className="relative text-brand-navy hover:bg-accent hover:text-brand-navy"
-                aria-label={`Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`}
+                aria-label={`Cart, ${cartCount} item${
+                  cartCount === 1 ? "" : "s"
+                }`}
                 onClick={goToCart}
               >
                 <ShoppingCart className="size-4" />
+
                 {showCartBadge && (
                   <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
                     {cartCount}
@@ -245,6 +288,7 @@ export default function Navbar() {
                     <Menu className="size-4" />
                   </Button>
                 </SheetTrigger>
+
                 <SheetContent className="overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>
@@ -267,11 +311,19 @@ export default function Navbar() {
                       ))}
                     </div>
 
-                    <Accordion type="single" collapsible className="flex w-full flex-col gap-4">
-                      <AccordionItem value="categories" className="border-b-0">
+                    <Accordion
+                      type="single"
+                      collapsible
+                      className="flex w-full flex-col gap-4"
+                    >
+                      <AccordionItem
+                        value="categories"
+                        className="border-b-0"
+                      >
                         <AccordionTrigger className="py-0 font-semibold text-brand-navy hover:no-underline">
                           Categories
                         </AccordionTrigger>
+
                         <AccordionContent className="mt-2">
                           <div className="flex flex-col gap-1">
                             {categories.map((category) => (
@@ -281,6 +333,7 @@ export default function Navbar() {
                                 className="flex select-none items-center gap-3 rounded-md p-3 leading-none text-brand-navy outline-none transition-colors hover:bg-accent"
                               >
                                 <category.icon className="size-5 shrink-0" />
+
                                 <span className="text-sm font-medium">
                                   {category.title}
                                 </span>
@@ -310,14 +363,14 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Search Dialog — searches real Cosmo Mobile Spares Ltd Supabase
-          products, not mock data */}
+      {/* Search Dialog */}
       <CommandDialog open={openSearch} onOpenChange={setOpenSearch}>
         <CommandInput
           placeholder="Search products (e.g. iPhone screen, soldering iron)..."
           value={searchTerm}
           onValueChange={setSearchTerm}
         />
+
         <CommandList>
           {searchTerm.trim() === "" ? (
             <CommandEmpty>Start typing to search products.</CommandEmpty>
@@ -332,7 +385,10 @@ export default function Navbar() {
                   onSelect={() => goToProduct(product.id)}
                 >
                   <span className="flex flex-1 flex-col">
-                    <span className="text-sm font-medium">{product.name}</span>
+                    <span className="text-sm font-medium">
+                      {product.name}
+                    </span>
+
                     <span className="text-xs text-muted-foreground">
                       {product.category}
                     </span>

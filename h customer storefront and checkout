@@ -1,0 +1,11 @@
+ src/components/CategoryCard.tsx     |  27 [32m+[m[31m-[m
+ src/components/CtaSection.tsx       |  71 [32m+++[m[31m--[m
+ src/components/HeroSection.tsx      | 152 [32m+++++++[m[31m---[m
+ src/components/ProductCard.tsx      |  54 [32m++[m[31m--[m
+ src/components/WhyChooseSection.tsx |  36 [32m++[m[31m-[m
+ src/components/ui/navbar.tsx        | 102 [32m+++++[m[31m--[m
+ src/pages/Cart.tsx                  | 380 [32m++++++++++++++++[m[31m---------[m
+ src/pages/Checkout.tsx              | 547 [32m++++++++++++++++++++++++++[m[31m----------[m
+ src/pages/ProductDetails.tsx        | 454 [32m++++++++++++++++++[m[31m------------[m
+ src/pages/Shop.tsx                  | 373 [32m++++++++++++[m[31m------------[m
+ 10 files changed, 1433 insertions(+), 763 deletions(-)
