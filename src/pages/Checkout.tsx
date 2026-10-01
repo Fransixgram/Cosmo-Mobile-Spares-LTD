@@ -600,7 +600,7 @@ export default function Checkout() {
                       value={values.state}
                       onChange={handleChange}
                       aria-invalid={Boolean(errors.state)}
-                      className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-brand-navy focus-visible:ring-2 focus-visible:ring-brand-navy/20"
+                      className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-navy/20"
                     >
                       <option value="">Select state</option>
                       {NIGERIAN_STATES.map((state) => (

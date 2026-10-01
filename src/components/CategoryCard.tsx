@@ -18,7 +18,7 @@ export default function CategoryCard({ category }: CategoryCardProps) {
   return (
     <Link
       to={`/shop?category=${category.slug}`}
-      className="group relative flex min-h-[150px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-navy/20 hover:shadow-lg"
+      className="group relative flex min-h-37.5 flex-col items-center justify-center overflow-hidden rounded-2xl border border-border bg-white p-5 text-center shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-brand-navy/20 hover:shadow-lg"
     >
       <span
         className="absolute right-3 top-3 flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground opacity-0 transition-all duration-200 group-hover:bg-brand-red group-hover:text-white group-hover:opacity-100"

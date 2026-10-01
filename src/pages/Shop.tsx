@@ -238,7 +238,7 @@ export default function Shop() {
                   setSortOption(event.target.value as SortOption)
                 }
                 aria-label="Sort products"
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none transition-colors focus-visible:border-brand-navy focus-visible:ring-2 focus-visible:ring-brand-navy/20"
+                className="h-10 rounded-md border bg-background px-3 text-sm outline-none transition-colors focus-visible:border-brand-navy focus-visible:ring-2 focus-visible:ring-brand-navy/20"
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>

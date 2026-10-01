@@ -168,12 +168,12 @@ export default function Navbar() {
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger className="text-brand-navy/80 hover:text-brand-navy data-[state=open]:text-brand-navy">
+                  <NavigationMenuTrigger className="text-brand-navy/80 hover:text-brand-navy">
                     Categories
                   </NavigationMenuTrigger>
 
                   <NavigationMenuContent>
-                    <ul className="grid w-[420px] grid-cols-2 gap-1 p-3">
+                    <ul className="grid w-105 grid-cols-2 gap-1 p-3">
                       {categories.map((category) => (
                         <li key={category.slug}>
                           <NavigationMenuLink asChild>
