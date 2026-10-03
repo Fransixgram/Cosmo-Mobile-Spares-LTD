@@ -171,7 +171,12 @@ export default function Checkout() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const isPickup = values.deliveryMethod === "pickup";
-  const deliveryFee = isPickup ? 0 : getDeliveryFee();
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+  const deliveryFee = getDeliveryFee(
+    values.deliveryMethod,
+    values.state,
+    totalQuantity,
+  );
   const total = subtotal + deliveryFee;
 
   function handleChange(

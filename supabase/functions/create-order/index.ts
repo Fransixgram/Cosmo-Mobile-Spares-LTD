@@ -1,10 +1,35 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
-// The server is the source of truth for the delivery fee. Keep this in sync
-// with getDeliveryFee() in src/lib/delivery.ts until real delivery pricing
-// exists.
-const DELIVERY_FEE_NAIRA = 0;
+// The server is the source of truth for delivery pricing.
+const LAGOS_DELIVERY_FEE = 2000;
+const OTHER_STATES_SMALL_FEE = 2000;
+const OTHER_STATES_MEDIUM_FEE = 5000;
+const OTHER_STATES_LARGE_FEE = 8000;
+
+function getDeliveryFee(
+  deliveryMethod: "delivery" | "pickup",
+  state: string,
+  totalQuantity: number,
+): number {
+  if (deliveryMethod === "pickup") {
+    return 0;
+  }
+
+  if (state.trim().toLowerCase() === "lagos") {
+    return LAGOS_DELIVERY_FEE;
+  }
+
+  if (totalQuantity <= 5) {
+    return OTHER_STATES_SMALL_FEE;
+  }
+
+  if (totalQuantity <= 9) {
+    return OTHER_STATES_MEDIUM_FEE;
+  }
+
+  return OTHER_STATES_LARGE_FEE;
+}
 const MAX_LINE_QUANTITY = 100;
 const MAX_TEXT_LENGTH = 300;
 
@@ -158,7 +183,8 @@ export default {
 
     // --- Calculate the money on the server ---
     const subtotal = roundMoney(lines.reduce((sum, line) => sum + line.lineTotal, 0));
-    const deliveryFee = isPickup ? 0 : DELIVERY_FEE_NAIRA;
+    const totalQuantity = lines.reduce((sum, line) => sum + line.quantity, 0);
+    const deliveryFee = getDeliveryFee(body.deliveryMethod, state, totalQuantity);
     const total = roundMoney(subtotal + deliveryFee);
 
     // If the price the customer saw is not the price we calculated, stop
