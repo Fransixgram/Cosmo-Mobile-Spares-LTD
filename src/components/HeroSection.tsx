@@ -1,156 +1,136 @@
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  Battery,
-  Camera,
-  Cable,
-  CheckCircle2,
-  Wrench,
+  Headset,
+  ShieldCheck,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const repairItems = [
-  { icon: Battery, label: "Batteries" },
-  { icon: Camera, label: "Cameras" },
-  { icon: Wrench, label: "Repair Tools" },
-  { icon: Cable, label: "Cables" },
+const trustPoints = [
+  { icon: ShieldCheck, title: "Genuine Parts", subtitle: "Trusted quality" },
+  { icon: Truck, title: "Fast Delivery", subtitle: "Across Nigeria" },
+  { icon: Headset, title: "Reliable Support", subtitle: "We're here to help" },
 ];
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-brand-navy">
-      {/* Subtle decorative background glow */}
+    <section className="relative isolate overflow-hidden bg-[#050b32] text-white">
+      {/* Blurred reference image behind the readable hero content */}
       <div
-        className="pointer-events-none absolute -right-40 -top-40 size-80 rounded-full bg-brand-red/20 blur-3xl"
         aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -bottom-40 left-1/3 size-80 rounded-full bg-brand-yellow/10 blur-3xl"
-        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-20 scale-105 bg-cover bg-center blur-[5px]"
+        style={{ backgroundImage: "url('/cosmo-hero-background.png')" }}
       />
 
-      <div className="relative mx-auto grid max-w-6xl gap-14 px-4 py-12 sm:py-14 lg:grid-cols-2 lg:items-center lg:gap-20 lg:py-16">
-        {/* Left content */}
-        <div className="max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-brand-yellow backdrop-blur-sm">
-            <span
-              className="size-1.5 rounded-full bg-brand-yellow"
-              aria-hidden="true"
-            />
-            Cosmo Mobile Spares Ltd
+      {/* Navy overlay keeps the text readable and hides the reference text */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(3,8,39,.97) 0%, rgba(5,13,49,.91) 43%, rgba(5,11,50,.65) 100%), linear-gradient(0deg, rgba(5,11,50,.55), rgba(5,11,50,.15))",
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-25"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, #8eb4ff 1.5px, transparent 2px)",
+          backgroundSize: "22px 22px",
+          maskImage: "linear-gradient(90deg, black, transparent 30%)",
+        }}
+      />
+
+      <div className="relative mx-auto grid max-w-[1440px] items-center gap-10 px-5 pb-16 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:min-h-[610px] lg:grid-cols-[0.94fr_1.06fr] lg:gap-5 lg:px-8 lg:py-16">
+        <div className="relative z-10 max-w-[650px]">
+          <div className="inline-flex items-center rounded-full bg-brand-red px-5 py-2 text-xs font-extrabold uppercase tracking-[0.12em] shadow-lg shadow-red-950/30 sm:text-sm">
+            Your one-stop shop
           </div>
 
-          <h1 className="mt-4 max-w-xl text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[40px]">
-            Quality Mobile Phone Spare Parts{" "}
-            <span className="relative inline-block">
-              &amp; Repair Essentials
-              <span
-                className="absolute inset-x-0 -bottom-1 h-1 rounded-full bg-brand-yellow"
-                aria-hidden="true"
-              />
+          <h1 className="mt-5 text-[2.65rem] font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-[3.65rem] xl:text-[4rem]">
+            Quality Mobile Spare Parts
+            <span className="mt-1 block text-brand-red">
+              for Every Device
             </span>
           </h1>
 
-          <p className="mt-4 max-w-lg text-sm leading-6 text-white/70 sm:text-base">
-            Find reliable phone replacement parts, repair tools and
-            accessories for your next repair job.
+          <p className="mt-6 max-w-[590px] text-base leading-7 text-blue-50/90 sm:text-lg sm:leading-8">
+            We supply genuine and high-quality mobile spare parts,
+            accessories and tools for all your repair and maintenance needs.
           </p>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="group">
-              <Link to="/shop">
-                Shop Products
-                <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </Button>
-
+          <div className="mt-8">
             <Button
               asChild
               size="lg"
-              variant="outline"
-              className="border-white/25 bg-white/5 text-white backdrop-blur-sm hover:bg-white/10 hover:text-white"
+              className="group h-[58px] rounded-full bg-brand-red px-8 text-base font-bold text-white shadow-lg shadow-red-950/30 hover:bg-brand-red/90 sm:px-10"
             >
-              <Link to="/contact">Contact Us</Link>
+              <Link to="/shop">
+                Shop Now
+                <ArrowRight className="ml-3 size-5 transition-transform group-hover:translate-x-1" />
+              </Link>
             </Button>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/60">
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="size-3.5 text-brand-yellow" />
-              Quality-focused selection
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="size-3.5 text-brand-yellow" />
-              Pickup available
-            </span>
+          <div className="mt-10 grid grid-cols-1 gap-5 border-t border-white/10 pt-6 sm:grid-cols-3 sm:gap-0 sm:border-t-0 sm:pt-0">
+            {trustPoints.map(({ icon: Icon, title, subtitle }, index) => (
+              <div
+                key={title}
+                className={`flex items-center gap-3 sm:pr-4 ${
+                  index > 0 ? "sm:border-l sm:border-white/20 sm:pl-5" : ""
+                }`}
+              >
+                <Icon
+                  aria-hidden="true"
+                  className="size-8 shrink-0 text-brand-red sm:size-9"
+                  strokeWidth={2}
+                />
+                <div>
+                  <p className="text-sm font-bold text-white sm:text-[15px]">
+                    {title}
+                  </p>
+                  <p className="mt-1 text-xs text-blue-100/80">{subtitle}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Right visual panel */}
-        <div className="relative mx-auto w-full max-w-xs lg:ml-auto">
-          {/* Floating wrench accent */}
+        {/* Original flyer, kept crisp above the blurred background */}
+        <div className="relative z-10 mx-auto w-full max-w-[700px] lg:ml-auto lg:mr-[-28px]">
           <div
-            className="absolute -right-3 -top-3 z-10 flex size-12 items-center justify-center rounded-xl bg-brand-red shadow-lg"
             aria-hidden="true"
-          >
-            <Wrench className="size-5 text-white" />
-          </div>
+            className="absolute -inset-6 rounded-[3rem] bg-blue-500/20 blur-3xl"
+          />
 
-          <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-white p-2 shadow-2xl">
-            <div className="rounded-xl bg-muted/60 p-5 sm:p-6">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div
-                    className="absolute inset-0 scale-125 rounded-full bg-brand-yellow/20 blur-xl"
-                    aria-hidden="true"
-                  />
-                  <img
-                    src="/favicon-512.png"
-                    alt="Cosmo Mobile Spares logo"
-                    className="relative size-20 rounded-full shadow-md sm:size-24"
-                  />
-                </div>
-              </div>
+          <div
+            aria-hidden="true"
+            className="absolute -inset-x-3 bottom-2 top-8 rotate-[-4deg] rounded-[2rem] bg-brand-red/80 shadow-2xl"
+          />
 
-              <div className="mt-4 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-navy/55">
-                  Repair essentials
-                </p>
-
-                <h2 className="mt-1 text-lg font-bold text-brand-navy">
-                  Parts for the job
-                </h2>
-
-                <p className="mx-auto mt-1.5 max-w-[220px] text-xs leading-5 text-muted-foreground">
-                  Browse available spare parts, tools and accessories.
-                </p>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {repairItems.map(({ icon: Icon, label }) => (
-                  <div
-                    key={label}
-                    className="group flex items-center gap-2 rounded-lg border border-border bg-white p-2 transition-all hover:-translate-y-0.5 hover:border-brand-navy/20 hover:shadow-sm"
-                  >
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-brand-navy/10 text-brand-navy transition-colors group-hover:bg-brand-red group-hover:text-white">
-                      <Icon className="size-3.5" />
-                    </span>
-
-                    <span className="text-[10px] font-semibold leading-tight text-foreground">
-                      {label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-white p-1.5 shadow-2xl shadow-black/40 sm:rounded-[1.75rem] sm:p-2">
+            <img
+              src="/cosmo-mobile-flyer.jpg"
+              alt="Cosmo Mobile Spares Ltd flyer featuring mobile phone replacement parts, repair tools and accessories"
+              fetchPriority="high"
+              className="block h-auto max-h-[510px] w-full rounded-xl object-contain sm:rounded-[1.35rem]"
+            />
           </div>
 
           <div
-            className="absolute -bottom-1.5 left-7 right-7 h-1.5 rounded-full bg-brand-yellow/80"
             aria-hidden="true"
+            className="absolute -bottom-5 left-[12%] right-[12%] h-1.5 rounded-full bg-brand-red shadow-[0_0_20px_rgba(237,28,36,.6)]"
           />
         </div>
       </div>
+
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-10 left-[-5%] h-16 w-[110%] rounded-[50%_50%_0_0] bg-background sm:-bottom-12 sm:h-20"
+      />
     </section>
   );
 }
