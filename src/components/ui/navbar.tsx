@@ -50,6 +50,46 @@ const secondaryLinks = [
 const navLinkClass =
   "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-medium text-brand-navy/80 transition-colors hover:bg-accent hover:text-brand-navy";
 
+function BrandWordmark({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={`group/brand inline-flex shrink-0 items-center ${
+        compact ? "gap-2" : "gap-2.5"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex shrink-0 items-center justify-center rounded-xl bg-brand-navy font-black tracking-tighter text-white shadow-sm transition-colors group-hover/brand:bg-brand-red ${
+          compact ? "size-9 text-lg" : "size-10 text-xl"
+        }`}
+      >
+        C<span className="text-brand-red group-hover/brand:text-white">.</span>
+      </span>
+
+      <span className="flex flex-col leading-none">
+        <span
+          className={`font-black tracking-[-0.055em] text-brand-navy ${
+            compact ? "text-lg" : "text-xl"
+          }`}
+        >
+          Cosmo<span className="text-brand-red">.</span>
+        </span>
+        <span
+          className={`mt-1 font-bold uppercase tracking-[0.19em] text-brand-navy/65 ${
+            compact ? "text-[8px]" : "text-[9px]"
+          }`}
+        >
+          Mobile Spares
+        </span>
+        <span
+          aria-hidden="true"
+          className="mt-1 h-0.5 w-8 rounded-full bg-brand-red transition-all duration-300 group-hover/brand:w-full"
+        />
+      </span>
+    </span>
+  );
+}
+
 export default function Navbar() {
   const [openSearch, setOpenSearch] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -137,20 +177,18 @@ export default function Navbar() {
     >
       <div
         className={`container mx-auto max-w-6xl px-4 transition-all duration-300 ${
-          isScrolled ? "py-2" : "py-4"
+          isScrolled ? "py-2" : "py-3"
         }`}
       >
         {/* Desktop Navbar */}
         <nav className="hidden items-center justify-between lg:flex">
           <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span
-                className={`font-extrabold tracking-tight text-brand-navy transition-all duration-300 ${
-                  isScrolled ? "text-lg" : "text-xl"
-                }`}
-              >
-                Cosmo<span className="font-semibold"> Mobile Spares</span>
-              </span>
+            <Link
+              to="/"
+              aria-label="Cosmo Mobile Spares home"
+              className="rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-4"
+            >
+              <BrandWordmark compact={isScrolled} />
             </Link>
 
             <NavigationMenu>
@@ -237,18 +275,16 @@ export default function Navbar() {
 
         {/* Mobile Navbar */}
         <div className="block lg:hidden">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <span
-                className={`font-extrabold tracking-tight text-brand-navy transition-all duration-300 ${
-                  isScrolled ? "text-base" : "text-lg"
-                }`}
-              >
-                Cosmo<span className="font-semibold"> Mobile Spares</span>
-              </span>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/"
+              aria-label="Cosmo Mobile Spares home"
+              className="min-w-0 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-2"
+            >
+              <BrandWordmark compact />
             </Link>
 
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -292,9 +328,13 @@ export default function Navbar() {
                 <SheetContent className="overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>
-                      <span className="text-base font-extrabold tracking-tight text-brand-navy">
-                        Cosmo<span className="font-semibold"> Mobile Spares</span>
-                      </span>
+                      <Link
+                        to="/"
+                        aria-label="Cosmo Mobile Spares home"
+                        className="inline-flex rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-brand-red focus-visible:ring-offset-2"
+                      >
+                        <BrandWordmark compact />
+                      </Link>
                     </SheetTitle>
                   </SheetHeader>
 
