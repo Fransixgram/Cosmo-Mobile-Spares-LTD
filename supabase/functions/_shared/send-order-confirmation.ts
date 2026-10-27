@@ -197,8 +197,9 @@ export async function sendOrderConfirmation(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Cosmo Mobile Spares <onboarding@resend.dev>",
+      from: "Cosmo Mobile Spares <hello@cosmo-mobile.store>",
       to: [order.customerEmail],
+      replyTo: "hello@cosmo-mobile.store",
       subject: `Order ${formatOrderId(order.orderId)} confirmed — Cosmo Mobile Spares`,
       html,
     }),
