@@ -9,6 +9,98 @@ interface VerifyRequestBody {
   reference: string;
 }
 
+async function deliverOrderConfirmation(
+  supabaseAdmin: any,
+  order: any,
+) {
+  const orderId = order.id;
+
+  if (order.payment_status !== "paid") {
+    return { success: false, emailSent: false };
+  }
+
+  const { data: orderItems, error: itemsError } = await supabaseAdmin
+    .from("order_items")
+    .select("product_name, unit_price, quantity")
+    .eq("order_id", orderId);
+
+  if (itemsError || !orderItems) {
+    console.error("Could not load order items for confirmation:", itemsError);
+    return { success: false, emailSent: false };
+  }
+
+  const { data: claimed, error: claimError } = await supabaseAdmin.rpc(
+    "claim_order_confirmation_email",
+    { p_order_id: orderId },
+  );
+
+  if (claimError) {
+    console.error("Could not claim confirmation email:", claimError);
+    return { success: false, emailSent: false };
+  }
+
+  if (claimed !== true) {
+    // Another handler may be sending the email, or it may already be sent.
+    return { success: true, emailSent: false };
+  }
+
+  try {
+    await sendOrderConfirmation({
+      orderId: order.id,
+      customerName: order.full_name,
+      customerEmail: order.email,
+      items: orderItems.map((item: any) => ({
+        name: item.product_name,
+        quantity: Number(item.quantity),
+        price: Number(item.unit_price),
+      })),
+      subtotal: Number(order.subtotal),
+      deliveryFee: Number(order.delivery_fee),
+      total: Number(order.total),
+      deliveryMethod:
+        order.delivery_method === "pickup" ? "pickup" : "delivery",
+      address: order.address,
+      city: order.city,
+      state: order.state,
+      landmark: order.landmark,
+    });
+
+    const { data: finished, error: finishError } =
+      await supabaseAdmin.rpc("finish_order_confirmation_email", {
+        p_order_id: orderId,
+        p_status: "sent",
+        p_error: null,
+      });
+
+    if (finishError || finished !== true) {
+      console.error(
+        "Email was sent, but its delivery status could not be saved:",
+        finishError,
+      );
+      return { success: false, emailSent: true };
+    }
+
+    return { success: true, emailSent: true };
+  } catch (emailError) {
+    console.error("Order confirmation email failed:", emailError);
+
+    const { error: finishError } = await supabaseAdmin.rpc(
+      "finish_order_confirmation_email",
+      {
+        p_order_id: orderId,
+        p_status: "failed",
+        p_error: String(emailError),
+      },
+    );
+
+    if (finishError) {
+      console.error("Could not record email failure:", finishError);
+    }
+
+    return { success: false, emailSent: false };
+  }
+}
+
 export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (req, ctx) => {
     if (!PAYSTACK_SECRET_KEY) {
@@ -22,6 +114,7 @@ export default {
     }
 
     let body: VerifyRequestBody;
+
     try {
       body = await req.json();
     } catch {
@@ -33,21 +126,25 @@ export default {
 
     const { orderId, reference } = body;
 
-    if (!orderId || !reference) {
+    if (
+      typeof orderId !== "string" ||
+      typeof reference !== "string" ||
+      !orderId.trim() ||
+      !reference.trim()
+    ) {
       return Response.json(
         { success: false, error: "orderId and reference are required." },
         { status: 400 },
       );
     }
 
-    // Look up the order first.
     const { data: order, error: orderError } = await ctx.supabaseAdmin
       .from("orders")
       .select(
-        "id, full_name, email, delivery_method, address, state, city, landmark, subtotal, delivery_fee, total, payment_status",
+        "id, full_name, email, delivery_method, address, state, city, landmark, subtotal, delivery_fee, total, payment_status, paystack_reference",
       )
       .eq("id", orderId)
-      .single();
+      .maybeSingle();
 
     if (orderError || !order) {
       return Response.json(
@@ -56,27 +153,71 @@ export default {
       );
     }
 
-    // Idempotency: if this order was already marked paid, don't re-process
-    // it or send another confirmation email.
+    // If already paid, verify that this is the same reference before
+    // attempting recovery of a pending or failed confirmation email.
     if (order.payment_status === "paid") {
-      return Response.json({ success: true, alreadyPaid: true });
+      if (order.paystack_reference !== reference) {
+        return Response.json(
+          {
+            success: false,
+            error: "This order has already been paid with a different reference.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const delivery = await deliverOrderConfirmation(ctx.supabaseAdmin, order);
+
+      return Response.json({
+        success: true,
+        alreadyPaid: true,
+        emailSent: delivery.emailSent,
+      });
     }
 
-    // Verify the transaction directly with Paystack's servers.
-    const paystackResponse = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        },
-      },
-    );
+    let paystackResponse: Response;
 
-    const paystackResult = await paystackResponse.json();
+    try {
+      paystackResponse = await fetch(
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          },
+        },
+      );
+    } catch (error) {
+      console.error("Paystack verification request failed:", error);
+      return Response.json(
+        { success: false, error: "Payment verification is temporarily unavailable." },
+        { status: 502 },
+      );
+    }
+
+    let paystackResult: any;
+
+    try {
+      paystackResult = await paystackResponse.json();
+    } catch {
+      return Response.json(
+        { success: false, error: "Invalid response from payment provider." },
+        { status: 502 },
+      );
+    }
+
+    const transaction = paystackResult?.data;
+    const transactionMetadata = transaction?.metadata;
 
     if (
       !paystackResponse.ok ||
-      paystackResult?.data?.status !== "success"
+      !paystackResult?.status ||
+      transaction?.status !== "success" ||
+      transaction?.reference !== reference ||
+      transaction?.currency !== "NGN" ||
+      !transactionMetadata ||
+      typeof transactionMetadata !== "object" ||
+      Array.isArray(transactionMetadata) ||
+      transactionMetadata.order_id !== orderId
     ) {
       return Response.json(
         { success: false, error: "Payment could not be verified." },
@@ -84,11 +225,14 @@ export default {
       );
     }
 
-    // Confirm the amount actually paid matches this order's total.
     const expectedAmountKobo = Math.round(Number(order.total) * 100);
-    const paidAmountKobo = paystackResult.data.amount;
+    const paidAmountKobo = Number(transaction.amount);
 
-    if (paidAmountKobo !== expectedAmountKobo) {
+    if (
+      !Number.isSafeInteger(expectedAmountKobo) ||
+      !Number.isSafeInteger(paidAmountKobo) ||
+      paidAmountKobo !== expectedAmountKobo
+    ) {
       return Response.json(
         {
           success: false,
@@ -98,9 +242,6 @@ export default {
       );
     }
 
-    // Genuine, matching payment confirmed.
-    // The database function returns true only when THIS call actually changed
-    // the order from unpaid to paid.
     const { data: orderWasMarkedPaid, error: updateError } =
       await ctx.supabaseAdmin.rpc("mark_order_paid", {
         p_order_id: orderId,
@@ -108,6 +249,7 @@ export default {
       });
 
     if (updateError) {
+      console.error("Failed to mark verified order as paid:", updateError);
       return Response.json(
         {
           success: false,
@@ -117,73 +259,51 @@ export default {
       );
     }
 
-    // If another payment-confirmation path already marked this order paid,
-    // don't send another confirmation email.
+    // A concurrent handler may have completed the payment first. Confirm
+    // the stored payment and reference match before proceeding.
+    let confirmedOrder = order;
+
     if (orderWasMarkedPaid !== true) {
-      return Response.json({
-        success: true,
-        alreadyPaid: true,
-      });
+      const { data: currentOrder, error: currentOrderError } =
+        await ctx.supabaseAdmin
+          .from("orders")
+          .select(
+            "id, full_name, email, delivery_method, address, state, city, landmark, subtotal, delivery_fee, total, payment_status, paystack_reference",
+          )
+          .eq("id", orderId)
+          .maybeSingle();
+
+      if (
+        currentOrderError ||
+        currentOrder?.payment_status !== "paid" ||
+        currentOrder?.paystack_reference !== reference
+      ) {
+        return Response.json(
+          {
+            success: false,
+            error: "Order payment status could not be confirmed.",
+          },
+          { status: 409 },
+        );
+      }
+
+      confirmedOrder = currentOrder;
+    } else {
+      confirmedOrder = {
+        ...order,
+        payment_status: "paid",
+        paystack_reference: reference,
+      };
     }
 
-    // Fetch the order items only after payment has successfully transitioned
-    // from unpaid to paid.
-    const { data: orderItems, error: orderItemsError } =
-      await ctx.supabaseAdmin
-        .from("order_items")
-        .select("product_name, unit_price, quantity")
-        .eq("order_id", orderId);
+    const delivery = await deliverOrderConfirmation(
+      ctx.supabaseAdmin,
+      confirmedOrder,
+    );
 
-    if (orderItemsError || !orderItems) {
-      // Payment is already successful. Don't report it as a failed payment
-      // just because the confirmation email data couldn't be loaded.
-      console.error(
-        "Payment succeeded, but order items could not be loaded for email:",
-        orderItemsError,
-      );
-
-      return Response.json({
-        success: true,
-        emailSent: false,
-      });
-    }
-
-    try {
-      await sendOrderConfirmation({
-        orderId: order.id,
-        customerName: order.full_name,
-        customerEmail: order.email,
-        items: orderItems.map((item) => ({
-          name: item.product_name,
-          quantity: Number(item.quantity),
-          price: Number(item.unit_price),
-        })),
-        subtotal: Number(order.subtotal),
-        deliveryFee: Number(order.delivery_fee),
-        total: Number(order.total),
-        deliveryMethod:
-          order.delivery_method === "pickup" ? "pickup" : "delivery",
-        address: order.address,
-        city: order.city,
-        state: order.state,
-        landmark: order.landmark,
-      });
-
-      return Response.json({
-        success: true,
-        emailSent: true,
-      });
-    } catch (emailError) {
-      // Payment remains successful even if Resend fails.
-      console.error(
-        "Payment succeeded, but confirmation email failed:",
-        emailError,
-      );
-
-      return Response.json({
-        success: true,
-        emailSent: false,
-      });
-    }
+    return Response.json({
+      success: true,
+      emailSent: delivery.emailSent,
+    });
   }),
 };

@@ -23,7 +23,7 @@ import { supabase } from "@/lib/supabase";
 
 // Safe to expose in frontend code — this is Paystack's PUBLIC key.
 const PAYSTACK_PUBLIC_KEY =
-  "pk_test_633918ab7d2c20858c10db9ec1eb054aa447b409";
+  "pk_live_c1467aaa4f74613e1c6dea4dbc8aa60af5c2f64b";
 
 declare global {
   interface Window {
@@ -269,25 +269,31 @@ export default function Checkout() {
 
     paystack.openIframe();
   }
-
   async function verifyPayment(orderId: string, reference: string) {
-    const { data, error } = await supabase.functions.invoke(
-      "verify-paystack-payment",
-      { body: { orderId, reference } }
-    );
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "verify-paystack-payment",
+        { body: { orderId, reference } }
+      );
 
-    setSubmitting(false);
+      if (error || !data?.success) {
+        setCheckoutError(
+          `We couldn't confirm your payment automatically. Please contact us with this reference: ${reference}`
+        );
+        return;
+      }
 
-    if (error || !data?.success) {
+      clearCart();
+      setSubmitted(true);
+      showToast("Payment successful — order placed!");
+    } catch (error) {
+      console.error("Payment verification request failed:", error);
       setCheckoutError(
         `We couldn't confirm your payment automatically. Please contact us with this reference: ${reference}`
       );
-      return;
+    } finally {
+      setSubmitting(false);
     }
-
-    clearCart();
-    setSubmitted(true);
-    showToast("Payment successful — order placed!");
   }
 
   if (items.length === 0 && !submitted) {
